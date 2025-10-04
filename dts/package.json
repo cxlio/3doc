@@ -1,0 +1,25 @@
+{
+	"name": "@cxl/dts",
+	"description": "Generate symbol information from typescript source code",
+	"license": "GPL-3.0-only",
+	"version": "1.0.0",
+	"type": "module",
+	"scripts": {
+		"build": "cxl-build",
+		"test": "npm run build test"
+	},
+	"exports": {
+		".": "./index.js",
+		"./enum.js": "./enum.js"
+	},
+	"bugs": "https://github.com/cxlio/3doc/issues",
+	"dependencies": {
+		"typescript": "^5.9.2"
+	},
+	"homepage": "https://cxlio.github.io/3doc/dts",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/cxlio/3doc.git",
+		"directory": "dts"
+	}
+}

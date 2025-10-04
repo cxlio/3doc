@@ -1,0 +1,9 @@
+{
+	"extends": "../tsconfig.json",
+	"compilerOptions": {
+		"outDir": "../dist/dts",
+		"types": ["node"]
+	},
+	"references": [],
+	"files": ["index.ts", "enum.ts"]
+}

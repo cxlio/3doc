@@ -1,0 +1,21 @@
+{
+	"core": {
+		"filesExclude": ["./docs"]
+	},
+	"watch": {
+		"rules": {
+			"3doc": {
+				"files": ["3doc/*"],
+				"tasks": "npm run build --prefix 3doc"
+			},
+			"dts": {
+				"files": ["dts/*"],
+				"tasks": "npm run build --prefix dts"
+			},
+			"ui": {
+				"files": ["ui/*"],
+				"tasks": "npm run build --prefix ui"
+			}
+		}
+	}
+}

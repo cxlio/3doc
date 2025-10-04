@@ -1,0 +1,28 @@
+{
+	"name": "@cxl/3doc",
+	"version": "1.0.0",
+	"description": "Documentation generator for typescript",
+	"homepage": "https://cxlio.github.io/3doc/3doc",
+	"license": "GPL-3.0",
+	"bin": {
+		"3doc": "index.js"
+	},
+	"type": "module",
+	"exports": {
+		".": "./index.js",
+		"./render.js": "./render.js"
+	},
+	"dependencies": {
+		"markdown-it": "^14.1.0"
+	},
+	"scripts": {
+		"build": "node build.ts",
+		"test": "cxl-build test"
+	},
+	"bugs": "https://github.com/cxlio/3doc/issues",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/cxlio/3doc.git",
+		"directory": "3doc"
+	}
+}

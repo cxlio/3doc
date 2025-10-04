@@ -1,0 +1,17 @@
+{
+	"extends": "../tsconfig.json",
+	"compilerOptions": {
+		"outDir": "../dist/3doc",
+		"allowSyntheticDefaultImports": true,
+		"types": ["node"]
+	},
+	"references": [{ "path": "../dts" }],
+	"files": [
+		"index.ts",
+		"render.ts",
+		"render-html.ts",
+		"render-json.ts",
+		"render-summary.ts",
+		"localization.ts"
+	]
+}
