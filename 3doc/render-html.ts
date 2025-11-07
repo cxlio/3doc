@@ -1,28 +1,3 @@
-/*import { join } from 'path';
-import { readFileSync } from 'fs';
-
-import type { Output } from '../dts/index.js';
-
-import type { DocGen, File } from './index.js';
-
-export function render(app: DocGen, _output: Output): File[] {
-	const version = app.modulePackage?.version ?? '';
-	const main = app.debug
-		? '/3doc/dist/ui/package/index.bundle.js'
-		: '3doc.js';
-	return [
-		{
-			name: join(version, '3doc.js'),
-			content: readFileSync(join(import.meta.dirname, '3doc.js'), 'utf8'),
-		},
-		{
-			name: join(version, 'index.html'),
-			content: `<!DOCTYPE html>
-<script type="module" src="${main}"></script>
-<doc-root></doc-root>`,
-		},
-	];
-}*/
 import {
 	Output,
 	Node,

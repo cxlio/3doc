@@ -10,6 +10,9 @@
 		"build": "cxl-build",
 		"test": "cxl-build test"
 	},
+	"peerDependencies": {
+		"@cxl/ui": "^6.0.0-beta"
+	},
 	"bugs": "https://github.com/cxlio/3doc/issues",
 	"repository": {
 		"type": "git",

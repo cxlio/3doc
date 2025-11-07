@@ -208,7 +208,9 @@ component(DocDemo, {
 
 			return merge(
 				get(host, 'view').tap(updateView),
-				observeChildren(host).raf(render),
+				onVisible(host).switchMap(() =>
+					observeChildren(host).raf(render),
+				),
 			);
 		},
 	],

@@ -107,7 +107,6 @@ export function docgenRender({
 		nodeType: string | number | Summary | undefined,
 	): Child[] {
 		const type = getType(nodeType);
-		if (!type && nodeType) console.log(nodeType);
 		if (!type || typeof type === 'string') return [type || '?'];
 
 		switch (type.kind) {
