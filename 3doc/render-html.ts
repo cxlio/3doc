@@ -822,11 +822,9 @@ function ModuleNavbar(node: Node) {
 function Item(title: string, href: string, icon?: string) {
 	if (!href) throw new Error(`No href for "${title}"`);
 
-	const result = `<c-router-item href="${href}" ${
+	const result = `<doc-item href="${href}" ${
 		application.spa ? '' : 'external'
-	}>${
-		icon ? `<c-icon icon="${icon}"></c-icon>` : ''
-	}${title}</c-router-item>`;
+	}>${icon ? `<c-icon icon="${icon}"></c-icon>` : ''}${title}</doc-item>`;
 
 	return result;
 }
@@ -883,9 +881,9 @@ function getConfigScript(versions: string) {
 }
 
 function getRuntimeScripts(scripts: File[]) {
-	return `<script type="module" src="${
-		application.debug ? '/3doc/dist/ui/package/index.bundle.js' : '3doc.js'
-	}"></script>${scripts.map(src => `<script src="${src.name}"></script>`)}`;
+	return `<script type="module" src="3doc.js"></script>${scripts.map(
+		src => `<script type="module" src="${src.name}"></script>`,
+	)}`;
 }
 
 function getUserScripts(scripts = application.demoScripts, prefix = 'us') {
@@ -909,6 +907,8 @@ function Header(config: string, scripts: File[]) {
 	return `<!DOCTYPE html>
 <head>${config}${customHeadHtml}<meta charset="utf-8"><meta name="description" content="Documentation for ${title}" />${SCRIPTS}<title>${title} API Reference</title><style>
 doc-ct { gap:8px;margin-bottom:24px;white-space:wrap;font:var(--cxl-font-code);font-size:18px;display:flex;align-items:center; }
+c-application { opacity: 0; }
+c-application[ready] { opacity: 1; }
 </style></head>
 <c-application><doc-appbar></doc-appbar>${Navbar(pkg)}<c-body>`;
 }
@@ -949,9 +949,9 @@ function Page(p: Node) {
 export function hasOwnPage(node: Node) {
 	return (
 		node.kind === Kind.Class ||
-		node.kind === Kind.Interface ||
-		/*(node.kind === Kind.Interface &&
-			!(node.flags & Flags.DeclarationMerge)) ||*/
+		//node.kind === Kind.Interface ||
+		(node.kind === Kind.Interface &&
+			!(node.flags & Flags.DeclarationMerge)) ||
 		node.kind === Kind.Module ||
 		node.kind === Kind.Enum ||
 		node.kind === Kind.Component ||

@@ -5,6 +5,8 @@ import { Page } from './page.js';
 
 import type { SummaryJson } from './docgen.js';
 
+export { Body, Drawer, Icon } from '@cxl/ui';
+
 declare global {
 	const CONFIG: {
 		packageName: string;
