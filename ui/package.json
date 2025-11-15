@@ -4,7 +4,7 @@
 	"description": "Documentation generator for typescript",
 	"homepage": "https://cxlio.github.io/3doc/ui",
 	"license": "GPL-3.0",
-	"browser": "index.bundle.js",
+	"browser": "./index.bundle.js",
 	"type": "module",
 	"scripts": {
 		"build": "cxl-build",

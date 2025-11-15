@@ -1,26 +1,26 @@
-import { relative, resolve } from "path";
-import { createRequire } from "module";
+import { relative, resolve } from 'path';
+import { createRequire } from 'module';
 
-import { Kind, Flags } from "./enum.js";
+import { Kind, Flags } from './enum.js';
 
-import type * as ts from "typescript";
+import type * as ts from 'typescript';
 
 const require = createRequire(import.meta.dirname);
-const tsPath = require.resolve("typescript", {
-	paths: [".", import.meta.dirname],
+const tsPath = require.resolve('typescript', {
+	paths: ['.', import.meta.dirname],
 });
 /*eslint @typescript-eslint/no-require-imports:off */
-const tsLocal = require(tsPath) as typeof import("typescript");
+const tsLocal = require(tsPath) as typeof import('typescript');
 const { getParsedCommandLineOfConfigFile, NodeFlags, sys } = tsLocal;
 
 const SK = tsLocal.SyntaxKind;
 const TF = tsLocal.TypeFlags;
 
-export { Kind, Flags } from "./enum.js";
+export { Kind, Flags } from './enum.js';
 
 type dtsNode = Node;
 
-declare module "typescript" {
+declare module 'typescript' {
 	interface Node {
 		[dtsNode]?: dtsNode;
 		$$internal?: boolean;
@@ -158,18 +158,18 @@ export const defaultOptions: BuildOptions = {
 	cxlExtensions: false,
 };
 
-export const NumberType = createBaseType("number"),
-	StringType = createBaseType("string"),
-	BooleanType = createBaseType("boolean"),
-	UndefinedType = createBaseType("undefined"),
-	NullType = createBaseType("null"),
-	VoidType = createBaseType("void"),
-	AnyType = createBaseType("any"),
-	UnknownType = createBaseType("unknown"),
-	BigIntType = createBaseType("BigInt"),
-	NeverType = createBaseType("never");
+export const NumberType = createBaseType('number'),
+	StringType = createBaseType('string'),
+	BooleanType = createBaseType('boolean'),
+	UndefinedType = createBaseType('undefined'),
+	NullType = createBaseType('null'),
+	VoidType = createBaseType('void'),
+	AnyType = createBaseType('any'),
+	UnknownType = createBaseType('unknown'),
+	BigIntType = createBaseType('BigInt'),
+	NeverType = createBaseType('never');
 
-const dtsNode = Symbol("dtsNode");
+const dtsNode = Symbol('dtsNode');
 
 const printer = tsLocal.createPrinter();
 
@@ -189,9 +189,9 @@ const parseConfigHost: ts.FormatDiagnosticsHost & ts.ParseConfigFileHost = {
 	useCaseSensitiveFileNames: true,
 	readDirectory: sys.readDirectory,
 	getCurrentDirectory: sys.getCurrentDirectory,
-	getNewLine: () => "\n",
+	getNewLine: () => '\n',
 	fileExists: sys.fileExists,
-	getCanonicalFileName: (f) => f,
+	getCanonicalFileName: f => f,
 	readFile: sys.readFile,
 	onUnRecoverableConfigFileDiagnostic(e) {
 		const msg = tsLocal.formatDiagnosticsWithColorAndContext(
@@ -251,8 +251,8 @@ function _printNode(node: Node, visited: Node[] = []): PrintableNode {
 	visited.push(node);
 
 	const sources = Array.isArray(source)
-		? source.map((s) => s.name)
-		: source?.name || "?";
+		? source.map(s => s.name)
+		: source?.name || '?';
 
 	return {
 		id,
@@ -263,10 +263,10 @@ function _printNode(node: Node, visited: Node[] = []): PrintableNode {
 		value,
 		flags: flagText,
 		type: type && _printNode(type, visited),
-		typeParameters: typeParameters?.map((n) => _printNode(n, visited)),
-		parameters: parameters?.map((n) => _printNode(n, visited)),
-		children: children?.map((n) => _printNode(n, visited)),
-		extendedBy: extendedBy?.map((n) => _printNode(n, visited)),
+		typeParameters: typeParameters?.map(n => _printNode(n, visited)),
+		parameters: parameters?.map(n => _printNode(n, visited)),
+		children: children?.map(n => _printNode(n, visited)),
+		extendedBy: extendedBy?.map(n => _printNode(n, visited)),
 	};
 }
 
@@ -305,7 +305,7 @@ function parseTsConfig(tsconfig: string, _options?: BuildOptions) {
 		);
 	} catch (e) {
 		if (e instanceof Error) throw e;
-		const msg = typeof e === "string" ? e : String(e);
+		const msg = typeof e === 'string' ? e : String(e);
 		throw new Error(msg);
 	}
 
@@ -351,7 +351,7 @@ function getNodeSource(node: ts.Node): Source | undefined {
 		  }
 		: undefined;
 	if (result)
-		Object.defineProperty(result, "sourceFile", {
+		Object.defineProperty(result, 'sourceFile', {
 			value: sourceFile,
 			enumerable: false,
 		});
@@ -388,11 +388,11 @@ function getNodeName(node: ts.Node): string {
 
 	if (tsLocal.isComputedPropertyName(node) || tsLocal.isQualifiedName(node))
 		return node.pos === -1
-			? (node as unknown as ts.StringLiteral).text || ""
+			? (node as unknown as ts.StringLiteral).text || ''
 			: node.getText();
 
 	const moduleName = (node as ts.SourceFile).moduleName;
-	return moduleName || "";
+	return moduleName || '';
 }
 
 function createNode(node: ts.Node, extra?: Partial<Node>): Node {
@@ -471,7 +471,7 @@ function hasInternalAnnotation(node: ts.Node, text: string) {
 		if (ranges)
 			for (const r of ranges) {
 				const rangeText = text.substring(r.pos, r.end);
-				if (rangeText.indexOf("@internal") !== -1) {
+				if (rangeText.indexOf('@internal') !== -1) {
 					return (parent.$$internal = true);
 				}
 			}
@@ -554,18 +554,18 @@ function getResolvedType(type: ts.Type) {
 
 const comments = /<!--(.*?)-->/g;
 function processJsDoc(content: string) {
-	return content.replace(comments, "");
+	return content.replace(comments, '');
 }
 
-function parseJsDocComment(comment: ts.JSDoc["comment"]) {
+function parseJsDocComment(comment: ts.JSDoc['comment']) {
 	if (!comment) return;
-	if (typeof comment === "string") return processJsDoc(comment);
+	if (typeof comment === 'string') return processJsDoc(comment);
 
-	return comment.map((n) =>
+	return comment.map(n =>
 		n.kind === SK.JSDocLink
 			? {
-					tag: "link",
-					value: `${n.name?.getText() || ""}${n.text}`,
+					tag: 'link',
+					value: `${n.name?.getText() || ''}${n.text}`,
 			  }
 			: { value: processJsDoc(n.text) },
 	);
@@ -574,7 +574,7 @@ function parseJsDocComment(comment: ts.JSDoc["comment"]) {
 const jsDocRemoveStar = /^\s*\*\s/gm;
 
 function getJsDocText(doc: ts.JSDocTag | ts.JSDocComment): string {
-	const text = doc.getText().replace(jsDocRemoveStar, "");
+	const text = doc.getText().replace(jsDocRemoveStar, '');
 	return text;
 }
 
@@ -583,8 +583,8 @@ function mergeJsDocComment(content: DocumentationContent[], doc: ts.JSDocTag) {
 	const newContent = `\n${getJsDocText(doc)}`;
 
 	if (content.length > 0) {
-		const old = content[content.length - 1].value || "";
-		if (typeof old === "string")
+		const old = content[content.length - 1].value || '';
+		if (typeof old === 'string')
 			content[content.length - 1].value = old + newContent;
 		else old.push({ value: newContent });
 	} else content.push({ value: newContent });
@@ -595,20 +595,20 @@ function getNodeDocs(node: ts.Node, result: Node) {
 	const content: DocumentationContent[] = [];
 	const docs: Documentation = { content };
 
-	jsDoc?.forEach((doc) => {
+	jsDoc?.forEach(doc => {
 		const value = parseJsDocComment(doc.comment);
 		if (value) content.push({ value });
 	});
-	tsLocal.getJSDocTags(node).forEach((doc) => {
+	tsLocal.getJSDocTags(node).forEach(doc => {
 		const tag =
-			doc.tagName.escapedText === "description"
+			doc.tagName.escapedText === 'description'
 				? undefined
 				: (doc.tagName.escapedText as string);
 
 		const name = (doc as ts.JSDocSeeTag).name?.getText();
 		let value = doc.comment ? parseJsDocComment(doc.comment) : name;
 
-		if (currentOptions.cxlExtensions && tag === "tagName") {
+		if (currentOptions.cxlExtensions && tag === 'tagName') {
 			docs.tagName = String(value);
 			return;
 		}
@@ -625,18 +625,18 @@ function getNodeDocs(node: ts.Node, result: Node) {
 			return;
 		}
 
-		if (tag === "deprecated") result.flags |= Flags.Deprecated;
-		if (tag === "see" && doc.comment === "*") value = name;
-		if (tag === "beta") docs.beta = true;
-		if (tag === "alpha") docs.alpha = true;
+		if (tag === 'deprecated') result.flags |= Flags.Deprecated;
+		if (tag === 'see' && doc.comment === '*') value = name;
+		if (tag === 'beta') docs.beta = true;
+		if (tag === 'alpha') docs.alpha = true;
 		if (currentOptions.cxlExtensions) {
-			if (tag === "attribute") result.kind = Kind.Attribute;
-			else if (tag === "event") result.kind = Kind.Event;
+			if (tag === 'attribute') result.kind = Kind.Attribute;
+			else if (tag === 'event') result.kind = Kind.Event;
 		}
 
-		if (value && !(tag === "param" && node.kind !== SK.Parameter))
+		if (value && !(tag === 'param' && node.kind !== SK.Parameter))
 			content.push({
-				tag: tag === "desc" || tag === "description" ? undefined : tag,
+				tag: tag === 'desc' || tag === 'description' ? undefined : tag,
 				value,
 			});
 	});
@@ -753,7 +753,7 @@ function isReferenceType(type: ts.Type) {
 
 function serializeIndexedAccessType(type: ts.IndexedAccessType): Node {
 	return {
-		name: "",
+		name: '',
 		kind: Kind.IndexedType,
 		flags: 0,
 		children: [
@@ -869,7 +869,7 @@ function serializeType(type: ts.Type): Node {
 
 	if (type.isUnionOrIntersection())
 		return {
-			name: "",
+			name: '',
 			flags: 0,
 			kind: type.isUnion() ? Kind.TypeUnion : Kind.TypeIntersection,
 			children: type.types.map(serializeType),
@@ -927,7 +927,7 @@ function serializeFunction(
 }
 
 function serializeArray(node: ts.ArrayTypeNode) {
-	const result = createNode(node, { name: "Array" });
+	const result = createNode(node, { name: 'Array' });
 	// Should we store it as typeParameter?
 	result.type = serialize(node.elementType);
 	return result;
@@ -939,7 +939,7 @@ function getCxlDecorator(node: ts.Declaration, name: string) {
 	return (
 		decorators &&
 		decorators.find(
-			(deco) =>
+			deco =>
 				tsLocal.isCallExpression(deco.expression) &&
 				tsLocal.isIdentifier(deco.expression.expression) &&
 				(deco.expression.expression.escapedText as string).endsWith(
@@ -950,18 +950,18 @@ function getCxlDecorator(node: ts.Declaration, name: string) {
 }
 
 function isCxlAttribute(node: ts.Declaration, result: Node) {
-	const deco = getCxlDecorator(node, "Attribute");
+	const deco = getCxlDecorator(node, 'Attribute');
 	if (deco) {
 		const text = (
 			(deco.expression as ts.CallExpression).expression as ts.Identifier
 		).escapedText;
-		result.kind = text === "EventAttribute" ? Kind.Event : Kind.Attribute;
+		result.kind = text === 'EventAttribute' ? Kind.Event : Kind.Attribute;
 	}
 }
 
 function getCxlRole(node: ts.CallExpression): string {
 	const id = node.arguments[0];
-	return tsLocal.isStringLiteral(id) ? id.text : "";
+	return tsLocal.isStringLiteral(id) ? id.text : '';
 }
 
 function findBaseComponent(node: ts.ClassDeclaration) {
@@ -973,7 +973,7 @@ function findBaseComponent(node: ts.ClassDeclaration) {
 
 		const extend: ts.LeftHandSideExpression | undefined =
 			decl.heritageClauses?.find(
-				(n) => n.token === tsLocal.SyntaxKind.ExtendsKeyword,
+				n => n.token === tsLocal.SyntaxKind.ExtendsKeyword,
 			)?.types?.[0]?.expression;
 
 		const newType: ts.Type | undefined =
@@ -981,7 +981,7 @@ function findBaseComponent(node: ts.ClassDeclaration) {
 		if (!newType || type === newType) break;
 
 		const name = newType.symbol?.name;
-		if (name === "Component") return true;
+		if (name === 'Component') return true;
 
 		type = newType;
 	}
@@ -992,7 +992,7 @@ function getCxlClassMeta(
 	symbol: ts.Symbol | undefined,
 	result: Node,
 ): boolean {
-	const augment = getCxlDecorator(node, "Augment");
+	const augment = getCxlDecorator(node, 'Augment');
 	const args = (augment?.expression as ts.CallExpression)?.arguments;
 	const docs: Documentation = result.docs || {};
 	if (augment || (symbol && findBaseComponent(node)))
@@ -1001,8 +1001,8 @@ function getCxlClassMeta(
 
 	if (result.children) {
 		const tagNode = result.children.find(
-			(m) =>
-				m.name === "tagName" &&
+			m =>
+				m.name === 'tagName' &&
 				m.kind === Kind.Property &&
 				m.flags & Flags.Static,
 		);
@@ -1016,7 +1016,7 @@ function getCxlClassMeta(
 			else if (
 				tsLocal.isCallExpression(arg) &&
 				tsLocal.isIdentifier(arg.expression) &&
-				arg.expression.escapedText === "role"
+				arg.expression.escapedText === 'role'
 			)
 				docs.role = getCxlRole(arg);
 		});
@@ -1072,7 +1072,7 @@ function pushChildren(parent: Node, nodes: Node[]) {
 
 	for (const n of nodes) {
 		if (!n.parent) {
-			Object.defineProperty(n, "parent", {
+			Object.defineProperty(n, 'parent', {
 				value: parent,
 				enumerable: false,
 			});
@@ -1118,7 +1118,7 @@ function findExport(symbol?: ts.Symbol) {
 		const sourceFile = findSymbolOriginalFileNode(symbol);
 		if (sourceFile) {
 			const existing = sourceFile.children?.find(
-				(c) => c.name === symbol.name,
+				c => c.name === symbol.name,
 			);
 			if (existing) return existing;
 		}
@@ -1143,12 +1143,11 @@ function serializeClass(node: ts.ClassDeclaration | ts.InterfaceDeclaration) {
 		result = symbol[dtsNode];
 
 		if (!result && symbol.declarations) {
-			const decl = symbol.declarations.find((decl) => decl[dtsNode]);
+			const decl = symbol.declarations.find(decl => decl[dtsNode]);
 			// Ensure interface node is initialized
 			if (decl) result = serializeDeclaration(decl);
 		}
 
-		//first = result;
 		result ??= findExport(symbol);
 
 		// When working with merged interface declarations, the export modifier flag
@@ -1192,7 +1191,7 @@ function serializeClass(node: ts.ClassDeclaration | ts.InterfaceDeclaration) {
 				if (existingClass)
 					pushChildren(
 						existingClass,
-						result.children.map((s) => ({ ...s })),
+						result.children.map(s => ({ ...s })),
 					);
 			}
 		}
@@ -1204,11 +1203,11 @@ function serializeClass(node: ts.ClassDeclaration | ts.InterfaceDeclaration) {
 		const type: Node = (result.type = {
 			flags: 0,
 			kind: Kind.ClassType,
-			name: "",
+			name: '',
 			type: result,
 		});
 
-		node.heritageClauses.forEach((heritage) =>
+		node.heritageClauses.forEach(heritage =>
 			pushChildren(type, heritage.types.map(serialize)),
 		);
 
@@ -1234,7 +1233,7 @@ function getTypeDeclaration(type: ts.Type, symbol: ts.Symbol) {
 			? SK.InterfaceDeclaration
 			: undefined;
 	const decl = kind
-		? symbol.declarations?.find((d) => d.kind === kind)
+		? symbol.declarations?.find(d => d.kind === kind)
 		: symbol.declarations?.[0] || symbol.valueDeclaration;
 
 	return decl;
@@ -1285,7 +1284,7 @@ function serializeConditionalType(node: ts.ConditionalTypeNode) {
 
 function serializeConstructor(node: ts.ConstructorDeclaration) {
 	const result = serializeFunction(node);
-	result.name = "constructor";
+	result.name = 'constructor';
 	return result;
 }
 
@@ -1298,7 +1297,7 @@ function serializeIndexedAccessTypeNode(node: ts.IndexedAccessTypeNode) {
 function serializeIndexSignature(node: ts.IndexSignatureDeclaration) {
 	return createNode(node, {
 		id: createNodeId(node),
-		name: "__index",
+		name: '__index',
 		parameters: node.parameters.map(serialize),
 		type: node.type && serialize(node.type),
 	});
@@ -1367,7 +1366,7 @@ function serializeExportSpecifier(node: ts.ExportSpecifier) {
 }
 
 function normalizeSourceFileName(name: string) {
-	const root = currentOptions.rootDir ?? config?.options.rootDir ?? "";
+	const root = currentOptions.rootDir ?? config?.options.rootDir ?? '';
 	return relative(root, name);
 }
 
@@ -1385,7 +1384,7 @@ function normalizeModuleName(symbol: ts.Symbol) {
 			result.unshift(parent.name);
 	}
 
-	return result.join(".");
+	return result.join('.');
 }
 
 function findModuleResultNode(
@@ -1440,7 +1439,7 @@ function serializeModule(node: ts.ModuleDeclaration) {
 		(node.name && typeChecker.getSymbolAtLocation(node.name));
 
 	const result = findModuleResultNode(node, symbol);
-	node.body?.forEachChild((c) => visit(c, result));
+	node.body?.forEachChild(c => visit(c, result));
 
 	if (symbol && result.flags & Flags.Export) collectExports(symbol);
 
@@ -1588,7 +1587,7 @@ function findSourceFileReference(path: string) {
 	const references = program.getResolvedProjectReferences();
 	if (references)
 		return references.find(
-			(ref) => ref?.commandLine.fileNames.includes(path),
+			ref => ref?.commandLine.fileNames.includes(path),
 		);
 }
 
@@ -1604,7 +1603,7 @@ function parseModule(symbol: ts.Symbol, from: ts.SourceFile) {
 				if (project) {
 					buildReference(project.commandLine);
 					const moduleName = normalizeSourceFileName(originalPath);
-					return extraModules.find((m) => m.name === moduleName);
+					return extraModules.find(m => m.name === moduleName);
 				}
 			}
 			if (from.isDeclarationFile) return parseSourceFile(sf);
@@ -1646,7 +1645,7 @@ function visit(n: ts.Node, parent: Node) {
 }
 
 function collectExports(symbol: ts.Symbol) {
-	symbol.exports?.forEach((s) => {
+	symbol.exports?.forEach(s => {
 		const node = getSymbolDeclaration(s);
 		if (
 			node?.[dtsNode]?.source &&
@@ -1664,13 +1663,13 @@ function parseSourceFile(sourceFile: ts.SourceFile) {
 	moduleMap[sourceFile.fileName] = result;
 
 	if (result.flags & Flags.Internal) return result;
-	sourceFile.forEachChild((c) => visit(c, result));
+	sourceFile.forEachChild(c => visit(c, result));
 
 	const symbol = typeChecker.getSymbolAtLocation(sourceFile);
 	if (symbol) collectExports(symbol);
 
 	if (sourceFile.isDeclarationFile)
-		sourceFile.referencedFiles.forEach((ref) => {
+		sourceFile.referencedFiles.forEach(ref => {
 			const fn = ref.fileName;
 			if (config?.fileNames.includes(fn)) return;
 
@@ -1698,7 +1697,7 @@ function parseSourceFile(sourceFile: ts.SourceFile) {
 export function parse(options: ParseOptions): Node[] {
 	const compilerOptions = {
 		...{
-			lib: ["lib.es2022.d.ts"],
+			lib: ['lib.es2022.d.ts'],
 			module: tsLocal.ModuleKind.ESNext,
 			target: tsLocal.ScriptTarget.ESNext,
 			types: [],
@@ -1748,7 +1747,7 @@ export function parse(options: ParseOptions): Node[] {
 		currentOptions,
 		host,
 	);
-	if (!sourceFile) throw new Error("Invalid Source File");
+	if (!sourceFile) throw new Error('Invalid Source File');
 	sourceFiles = [sourceFile];
 
 	const sourceNode = parseSourceFile(sourceFile);
@@ -1758,7 +1757,7 @@ export function parse(options: ParseOptions): Node[] {
 function buildProject(config: ts.ParsedCommandLine) {
 	setup(config);
 	sourceFiles = config.fileNames.flatMap(
-		(fp) => program.getSourceFile(fp) || [],
+		fp => program.getSourceFile(fp) || [],
 	);
 	sourceFiles.forEach(parseSourceFile);
 }
@@ -1796,7 +1795,7 @@ function buildTsconfig(
 		},
 	};
 
-	config.projectReferences?.forEach((ref) => {
+	config.projectReferences?.forEach(ref => {
 		if (ref.prepend)
 			buildReference(
 				parseTsConfig(tsLocal.resolveProjectReferencePath(ref)),
@@ -1830,7 +1829,7 @@ export function buildConfig(
  * @param tsconfig Path to tsconfig.json file
  */
 export function build(
-	tsconfig = resolve("tsconfig.json"),
+	tsconfig = resolve('tsconfig.json'),
 	options?: Partial<BuildOptions>,
 ): Output {
 	const allOptions = {

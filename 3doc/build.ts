@@ -1,4 +1,4 @@
-import { buildLibrary, exec, file } from '@cxl/build';
+import { buildLibrary, exec, file, esbuild } from '@cxl/build';
 import { concat } from '@cxl/rx';
 
 buildLibrary({
@@ -6,8 +6,14 @@ buildLibrary({
 	outputDir: '../dist/3doc/package',
 	tasks: [
 		concat(
-			exec('npm run build package --prefix ../ui'),
-			file('../dist/ui/package/index.bundle.js', '3doc.js'),
+			esbuild({
+				entryPoints: ['../ui/index.js'],
+				platform: 'browser',
+				outfile: '../dist/3doc/package/3doc.js',
+				splitting: false,
+				tsconfig: '../ui/tsconfig.json',
+			}),
+			file('hljs.css', 'hljs.css'),
 		),
 	],
 });

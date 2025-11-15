@@ -7,9 +7,19 @@ import {
 	observeChildren,
 	tsx,
 } from '@cxl/ui';
+import hljs from 'highlight.js/lib/core';
+import xml from 'highlight.js/lib/languages/xml';
+
+hljs.registerLanguage('html', xml);
 
 export class BlogCode extends Component {
-	formatter?: (src: string) => string;
+	formatter?: (src: string) => string = (source: string) => {
+		return (
+			`<link rel="stylesheet" href="hljs.css" /><code style="white-space:pre;min-height:100%;font:var(--cxl-font-code);tab-size:2;">` +
+			hljs.highlight(source, { language: 'html' }).value +
+			'</code>'
+		);
+	};
 }
 
 component(BlogCode, {

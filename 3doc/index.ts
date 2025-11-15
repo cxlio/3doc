@@ -114,6 +114,8 @@ export interface DocGen {
 	 */
 	demoScripts?: string[];
 
+	demoStyles?: string;
+
 	/**
 	 * @description Allows parsing of specific files instead of an entire project.
 	 * @cli `--file`

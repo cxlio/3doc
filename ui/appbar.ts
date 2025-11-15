@@ -1,4 +1,12 @@
-import { Appbar, NavbarToggle, component, tsx } from '@cxl/ui';
+import {
+	Appbar,
+	NavbarToggle,
+	IconToggleTheme,
+	Flex,
+	Toolbar,
+	component,
+	tsx,
+} from '@cxl/ui';
 
 export class DocAppbar extends Appbar {
 	sticky = true;
@@ -9,8 +17,13 @@ component(DocAppbar, {
 	augment: [
 		$ => {
 			$.append(
-				tsx(NavbarToggle, { target: 'navbar' }),
-				CONFIG.packageName,
+				tsx(
+					Toolbar,
+					{ id: 'appbar-toolbar' },
+					tsx(NavbarToggle, { target: 'navbar' }),
+					tsx(Flex, { grow: true }, CONFIG.packageName),
+					tsx(IconToggleTheme, { persistkey: '3doc.theme' }),
+				),
 			);
 		},
 	],

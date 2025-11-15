@@ -1,4 +1,4 @@
-import { Component, component, css, tsx } from '@cxl/ui';
+import { Component, component, css, media, tsx } from '@cxl/ui';
 
 export class DocCard extends Component {}
 
@@ -6,7 +6,8 @@ component(DocCard, {
 	tagName: 'doc-card',
 	augment: [
 		css(`
-:host{margin-top: 16px; display:block; padding:16px; elevation:1; }
+:host{margin-top: 16px; display:block; elevation:1; }
+${media('medium', ':host{padding:16px}')}
 		`),
 		() => {
 			/*const srclink = $.getAttribute('src');

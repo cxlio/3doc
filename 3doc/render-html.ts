@@ -323,15 +323,14 @@ function Code(source: string, language?: string) {
 
 function Demo(doc: DocumentationContent): string {
 	const { title, value } = parseExample(getDocValue(doc.value));
+
 	const demo = application.cxlExtensions
 		? `<doc-demo${
 				application.debug ? ' debug' : ''
 		  }><!--${value}--></doc-demo>`
 		: Markdown(value);
 
-	return `<c-t font="h6">${
-		title || translate('Example')
-	}</c-t>${demo}<br/><br/>`;
+	return `<c-t font="h6">${title || translate('Example')}</c-t>${demo}`;
 }
 
 function Example(doc: DocumentationContent) {
@@ -347,20 +346,22 @@ function ExternalLink(url: string, title?: string) {
 	return `<a href="${getExternalLink(url)}">${escape(title || url)}</a>`;
 }
 
-function DocSee(doc: DocumentationContent) {
-	const value = doc.value;
+function DocSee(docs: DocumentationContent[]) {
+	const output = docs.map(doc => {
+		const value = doc.value;
+		let output: string = getDocValue(value);
+		if (typeof value === 'string') {
+			const symbol = findSymbolByName(value);
+			output = symbol
+				? Link(symbol)
+				: application.markdown
+				? Markdown(value, true)
+				: escape(value);
+		}
+		return output;
+	});
 
-	let output = Array.isArray(value) && getDocValue(value);
-	if (!output && typeof value === 'string') {
-		const symbol = findSymbolByName(value);
-		output = symbol
-			? Link(symbol)
-			: application.markdown
-			? Markdown(value, true)
-			: escape(value);
-	}
-
-	return `<p>${jsdocTitle('see')}: ${output}</p>`;
+	return `<p>${jsdocTitle('see')}: ${output.join(', ')}</p>`;
 }
 
 function formatContent(text: string) {
@@ -394,28 +395,34 @@ function Documentation(node: Node) {
 
 	if (!docs || !docs.content) return '';
 
-	return docs.content
-		.map(doc => {
-			if (doc.tag === 'demo') return Demo(doc);
-			if (doc.tag === 'example') return Example(doc);
-			if (doc.tag === 'see') return DocSee(doc);
-			if (typeof doc.value === 'string' && doc.tag === 'link')
-				return DocLink(doc.value);
+	const related: DocumentationContent[] = [];
 
-			const value = getDocValue(doc.value);
-			const text = application.markdown
-				? Markdown(value, !value.includes('\n'))
-				: formatContent(value);
+	const result = docs.content.map(doc => {
+		if (doc.tag === 'demo' || doc.tag === 'demoonly') return Demo(doc);
+		if (doc.tag === 'example') return Example(doc);
+		if (doc.tag === 'see') {
+			related.push(doc);
+			return '';
+		}
+		if (typeof doc.value === 'string' && doc.tag === 'link')
+			return DocLink(doc.value);
 
-			if (doc.tag === 'return')
-				return `<c-t font="h6">Returns</c-t><p>${text}</p>`;
-			if (doc.tag === 'param') return `<p>${text}</p>`;
+		const value = getDocValue(doc.value);
+		const text = application.markdown
+			? Markdown(value, !value.includes('\n'))
+			: formatContent(value);
 
-			return doc.tag
-				? `<p>${jsdocTitle(doc.tag)}: ${text}</p>`
-				: `<p>${text}</p>`;
-		})
-		.join('');
+		if (doc.tag === 'return')
+			return `<c-t font="h6">Returns</c-t><p>${text}</p>`;
+		if (doc.tag === 'param') return `<p>${text}</p>`;
+
+		// Ignore unknown tags.
+		return doc.tag ? '' : `<p>${text}</p>`;
+	});
+
+	if (related.length) result.push(DocSee(related));
+
+	return result.join('');
 }
 
 function ModuleDocumentation(node: Node) {
@@ -478,7 +485,7 @@ function Link(node: Node, content?: string, parent?: Node): string {
 			? escape(node.name)
 			: node.flags & Flags.Default
 			? '<i>default</i>'
-			: '(Unknown)');
+			: `(Unknown)`);
 
 	if (node.type && isReferenceNode(node)) node = node.type;
 
@@ -519,13 +526,13 @@ function sortNode(a: Node, b: Node) {
 
 function TagName(node: Node) {
 	const tagName = node.kind === Kind.Component && node.docs?.tagName;
-	return tagName ? `<c-t font="subtitle">&lt;${tagName}&gt;</c-t>` : '';
+	return tagName ? ` <c-t font="subtitle">&lt;${tagName}&gt;</c-t>` : '';
 }
 
 function ModuleTitle(node: Node) {
 	const docs = node.docs;
 	const chips =
-		`<span style="float:right">` +
+		`<c-flex gap="8">` +
 		NodeChips(node) +
 		(node.kind === Kind.Module ? Chip('module') : '') +
 		(node.kind === Kind.Class ? Chip('class') : '') +
@@ -535,7 +542,7 @@ function ModuleTitle(node: Node) {
 		(node.kind === Kind.Enum ? Chip('enum') : '') +
 		(docs && docs.role ? Chip(`role: ${docs.role}`) : '') +
 		(node.flags & Flags.DeclarationMerge ? Chip('declaration merge') : '') +
-		`</span>`;
+		`</c-flex>`;
 	const subtitle =
 		node.kind === Kind.Component
 			? TagName(node)
@@ -543,7 +550,7 @@ function ModuleTitle(node: Node) {
 			? ''
 			: '';
 
-	return `<c-t font="h3">${chips}${SignatureText(node)}${subtitle}</c-t>`;
+	return `${chips}<c-t font="h3">${SignatureText(node)}${subtitle}</c-t>`;
 }
 
 /*function getImportUrl(source: Source) {
@@ -569,13 +576,9 @@ function ImportStatement(node: Node) {
 }*/
 
 function MemberIndexLink(node: Node, parent?: Node) {
-	const chips = node.flags & Flags.Static ? `${Chip('static')} ` : '';
+	//const chips = node.flags & Flags.Static ? `${Chip('static')} ` : '';
 	const link = Link(node, undefined, parent);
-	return chips
-		? `<c>${chips}${link}</c>`
-		: link.startsWith('<')
-		? link
-		: `<c>${link}</c>`;
+	return link.startsWith('<') ? link : `<c>${link}</c>`;
 }
 
 function MemberGroupIndex({ kind, index }: Group) {
@@ -652,6 +655,8 @@ function getMemberGroups(node: Node, indexOnly = false, sort = true) {
 
 		if (c.type?.kind === Kind.ImportType && !c.type.type?.children?.length)
 			return;
+
+		if (c.kind === Kind.Unknown) return;
 
 		// Handle Object or Array destructuring
 		if (
@@ -886,7 +891,7 @@ function getRuntimeScripts(scripts: File[]) {
 	)}`;
 }
 
-function getUserScripts(scripts = application.demoScripts, prefix = 'us') {
+function getDemoScripts(scripts = application.demoScripts, prefix = 'us') {
 	let id = 0;
 	return (
 		scripts?.map(path => ({
@@ -907,10 +912,11 @@ function Header(config: string, scripts: File[]) {
 	return `<!DOCTYPE html>
 <head>${config}${customHeadHtml}<meta charset="utf-8"><meta name="description" content="Documentation for ${title}" />${SCRIPTS}<title>${title} API Reference</title><style>
 doc-ct { gap:8px;margin-bottom:24px;white-space:wrap;font:var(--cxl-font-code);font-size:18px;display:flex;align-items:center; }
-c-application { opacity: 0; }
-c-application[ready] { opacity: 1; }
+c-page { opacity: 0; }
+c-page[ready] { opacity: 1; }
+#appbar-toolbar {max-width: 1200px; margin: auto; width: 100%}
 </style></head>
-<c-application><doc-appbar></doc-appbar>${Navbar(pkg)}<c-body>`;
+<c-page><doc-appbar></doc-appbar>${Navbar(pkg)}<c-body>`;
 }
 
 function escapeFileName(name: string, replaceExt = '.html') {
@@ -1061,17 +1067,18 @@ function renderExtraFile({ file, index, title }: ExtraDocumentation) {
 
 function initRuntimeConfig(app: DocGen) {
 	const pkg = app.modulePackage;
-	const userScripts = getUserScripts();
+	const scripts = getDemoScripts();
 
 	docgenConfig = {
 		packageName: pkg.name,
 		activeVersion: pkg?.version || '',
-		userScripts: userScripts.map(f => f.name),
 		versions: pkg?.version && 'version.json',
 		repository: application.repositoryLink,
+		demoScripts: scripts.map(s => s.name),
+		demoStyles: application.demoStyles,
 	};
 
-	return userScripts;
+	return scripts;
 }
 
 function versionPrefix(version: string, file: File) {
@@ -1084,8 +1091,8 @@ export function render(app: DocGen, output: Output): File[] {
 		app.rootDir = output.config.options.rootDir;
 
 	allSymbols = Object.values(output.index);
-	const scripts = getUserScripts(application.scripts || [], 's');
-	const userScripts = initRuntimeConfig(app);
+	const scripts = getDemoScripts(application.scripts || [], 's');
+	const demoScripts = initRuntimeConfig(app);
 	const readmePath = join(application.packageRoot, 'README.md');
 	const version = app.modulePackage?.version;
 	extraDocs =
@@ -1099,11 +1106,18 @@ export function render(app: DocGen, output: Output): File[] {
 		section.items.map(renderExtraFile),
 	);
 	const staticFiles: File[] = [
-		...userScripts,
+		...demoScripts,
 		...scripts,
 		{
 			name: '3doc.js',
 			content: readFileSync(RUNTIME_JS, 'utf8'),
+		},
+		{
+			name: 'hljs.css',
+			content: readFileSync(
+				join(import.meta.dirname, 'hljs.css'),
+				'utf8',
+			),
 		},
 	];
 	const files: File[] = [...extraFiles, ...output.modules.flatMap(Module)];

@@ -11,14 +11,14 @@
 		"@cxl/ui": "^6.0.0-beta",
 		"@types/markdown-it": "^14.1.2",
 		"@types/node": "^24.6.2",
+		"highlight.js": "^11.11.1",
 		"markdown-it": "^14.1.0",
 		"typescript": "^5.9.3"
 	},
 	"type": "module",
 	"bugs": "https://github.com/cxlio/3doc/issues",
 	"scripts": {
-		"build": "./scripts/build.sh package docs",
-		"test": "./scripts/build.sh test"
+		"build": "cxl-build"
 	},
 	"repository": {
 		"type": "git",

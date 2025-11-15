@@ -14,9 +14,10 @@ export interface ExtraDocumentation {
 export interface RuntimeConfig {
 	packageName: string;
 	activeVersion: string;
-	userScripts: string[];
 	versions: string;
 	repository?: string;
+	demoScripts?: string[];
+	demoStyles?: string;
 }
 
 export interface Section {
@@ -54,6 +55,10 @@ export const Parameters = {
 		type: 'string',
 		many: true,
 		help: 'List of scripts (paths) to include in the generated documentation demo output.',
+	},
+	demoStyles: {
+		type: 'string',
+		help: 'CSS styles to include in the generated demo output.',
 	},
 	packageJson: {
 		help: 'Path to the package.json file. Defaults to "./package.json" if not specified.',
@@ -181,8 +186,9 @@ export async function buildDocs(
 		...config,
 	};
 
-	if (args.docsJson || existsSync('docs.json'))
-		Object.assign(args, await readJson(args.docsJson || 'docs.json'));
+	if (args.docsJson || existsSync('3doc.json')) {
+		Object.assign(args, await readJson(args.docsJson || '3doc.json'));
+	}
 
 	function doClean(dir: string) {
 		return sh(`rm -f ${dir}/*.html ${dir}/*.json ${dir}/*.js`);
