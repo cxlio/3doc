@@ -2,7 +2,7 @@
 	
 [![npm version](https://badge.fury.io/js/%40cxl%2F3doc.ui.svg)](https://badge.fury.io/js/%40cxl%2F3doc.ui)
 
-Documentation generator for typescript
+Client-side UI components and runtime for 3doc.
 
 ## Project Details
 

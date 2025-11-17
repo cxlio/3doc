@@ -1,7 +1,7 @@
 {
 	"name": "@cxl/3doc.ui",
 	"version": "1.0.0",
-	"description": "Documentation generator for typescript",
+	"description": "Client-side UI components and runtime for 3doc.",
 	"homepage": "https:/cxlio.github.io/docs/ui",
 	"license": "GPL-3.0",
 	"browser": "./index.bundle.js",
