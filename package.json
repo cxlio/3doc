@@ -2,7 +2,8 @@
 	"private": true,
 	"name": "@cxl/",
 	"version": "0.0.0",
-	"homepage": "https://github.com/cxlio/3doc/tree/main",
+	"homepage": "https://cxlio.github.io/docs/",
+	"description": "TypeScript/JavaScript API documentation generator that builds versioned static HTML and JSON with Markdown/JSDoc support, and custom tags.",
 	"devDependencies": {
 		"@cxl/build": "^1.0.0-beta",
 		"@cxl/program": "1.0.0",
@@ -23,5 +24,6 @@
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/cxlio/3doc.git"
-	}
+	},
+	"docs": "https://cxlio.github.io/docs"
 }

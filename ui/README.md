@@ -8,7 +8,7 @@ Documentation generator for typescript
 
 -   Branch Version: [1.0.0](https://npmjs.com/package/@cxl/3doc.ui/v/1.0.0)
 -   License: GPL-3.0
--   Documentation: [Link](https://cxlio.github.io/3doc/ui)
+-   Documentation: [Link](https:/cxlio.github.io/docs/ui)
 -   Report Issues: [Github](https://github.com/cxlio/3doc/issues)
 
 ## Installation

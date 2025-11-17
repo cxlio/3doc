@@ -1,6 +1,6 @@
 {
 	"name": "@cxl/dts",
-	"description": "Generate symbol information from typescript source code",
+	"description": "Generate a JSON AST of your TypeScript public API (exports, types, JSDoc) from tsconfig or source, resolving symbols and project references for documentation.",
 	"license": "GPL-3.0-only",
 	"version": "1.0.0",
 	"type": "module",
@@ -14,9 +14,9 @@
 	},
 	"bugs": "https://github.com/cxlio/3doc/issues",
 	"dependencies": {
-		"typescript": "^5.9.2"
+		"typescript": "^5.9.3"
 	},
-	"homepage": "https://cxlio.github.io/3doc/dts",
+	"homepage": "https:/cxlio.github.io/docs/dts",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/cxlio/3doc.git",

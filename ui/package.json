@@ -2,16 +2,13 @@
 	"name": "@cxl/3doc.ui",
 	"version": "1.0.0",
 	"description": "Documentation generator for typescript",
-	"homepage": "https://cxlio.github.io/3doc/ui",
+	"homepage": "https:/cxlio.github.io/docs/ui",
 	"license": "GPL-3.0",
 	"browser": "./index.bundle.js",
 	"type": "module",
 	"scripts": {
 		"build": "cxl-build",
-		"test": "cxl-build test"
-	},
-	"peerDependencies": {
-		"@cxl/ui": "^6.0.0-beta"
+		"test": "npm run build test"
 	},
 	"bugs": "https://github.com/cxlio/3doc/issues",
 	"repository": {
