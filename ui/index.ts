@@ -6,3 +6,4 @@ export * from './root.js';
 export * from './page.js';
 export * from './nav-list.js';
 export * from './item.js';
+export * from './search-page.js';

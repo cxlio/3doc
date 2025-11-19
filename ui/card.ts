@@ -6,7 +6,15 @@ component(DocCard, {
 	tagName: 'doc-card',
 	augment: [
 		css(`
-:host{margin-top: 16px; display:block; elevation:1; }
+:host{
+	margin-top: 16px;
+	display:block;
+	elevation:1;
+	scroll-margin-top: 80px;
+}
+:host(:target) {
+	outline: 2px dashed var(--cxl-color-primary);
+}
 ${media('medium', ':host{padding:16px}')}
 		`),
 		() => {

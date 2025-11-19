@@ -1,7 +1,7 @@
 import { existsSync } from 'fs';
 import { dirname, join, resolve } from 'path';
 import { ParametersResult, Package, mkdirp, readJson, sh } from '@cxl/program';
-import { BuildOptions, build, buildConfig } from '../dts/index.js';
+import { Kind, BuildOptions, build, buildConfig } from '../dts/index.js';
 import type { DocGen, File } from './index.js';
 
 export interface ExtraDocumentation {
@@ -18,6 +18,14 @@ export interface RuntimeConfig {
 	repository?: string;
 	demoScripts?: string[];
 	demoStyles?: string;
+	spa: boolean;
+	symbols: {
+		name: string;
+		tagName?: string;
+		icon?: string;
+		kind: Kind;
+		href?: string;
+	}[];
 }
 
 export interface Section {

@@ -3,9 +3,9 @@ import { Application, component, get, ref, tsx } from '@cxl/ui';
 import { NavList } from './nav-list.js';
 import { Page } from './page.js';
 
-import type { SummaryJson } from './docgen.js';
+import type { SummaryJson, Kind } from './docgen.js';
 
-export { Body, Page as UiPage, Drawer, Icon } from '@cxl/ui';
+export { Body, Page as UiPage, Drawer, Icon, NavHeadline, Hr } from '@cxl/ui';
 
 declare global {
 	const CONFIG: {
@@ -13,10 +13,20 @@ declare global {
 		activeVersion: string;
 		versions: string;
 		repository?: string;
+		spa: boolean;
 		demoScripts?: string[];
 		demoStyles?: string;
+		symbols: Symbol[];
 	};
 }
+
+export type Symbol = {
+	name: string;
+	tagName?: string;
+	icon?: string;
+	kind: Kind;
+	href?: string;
+};
 
 export class ComponentList extends Application {
 	summary?: SummaryJson;

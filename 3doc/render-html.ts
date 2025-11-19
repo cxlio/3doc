@@ -297,9 +297,9 @@ export function Signature(node: Node): string {
 	return `${NodeChips(node)}<div>${SignatureText(node)}</div>`;
 }
 
-export function Anchor(id: number | undefined, content: string) {
+/*export function Anchor(id: number | undefined, content: string) {
 	return id ? `<a name="s${id}"></a>${content}` : content;
-}
+}*/
 
 function getSourceLink(src: Source) {
 	const url = application.repositoryLink;
@@ -458,10 +458,9 @@ function MemberCard(c: Node) {
 	const src =
 		c.source &&
 		getSourceLink(Array.isArray(c.source) ? c.source[0] : c.source);
-	return Anchor(
-		c.id,
-		`<doc-card${src ? ` src="${src}"` : ''}>${MemberBody(c)}</doc-card>`,
-	);
+	return `<doc-card id="s${c.id}"${src ? ` src="${src}"` : ''}>${MemberBody(
+		c,
+	)}</doc-card>`;
 }
 
 function ExtendedBy(extendedBy?: Node[]) {
@@ -838,7 +837,7 @@ function Extra(docs: Section[]) {
 	return docs
 		.map(docs => {
 			const title = docs.title
-				? `<c-navbar-subtitle>${docs.title}</c-navbar-subtitle>`
+				? `<c-nav-headline>${docs.title}</c-nav-headline>`
 				: '';
 			const items = docs.items
 				.map(i =>
@@ -872,7 +871,6 @@ function findOtherVersions(outDir: string, currentVersion: string) {
 
 function Navbar(_pkg: Package) {
 	return `<c-drawer id="navbar">
-		<c-hr></c-hr>
 		${extraDocs.length ? NavbarExtra() : ''}	
 		${modules.sort(sortNode).map(ModuleNavbar).join('')}
 		</c-drawer>`;
@@ -1076,6 +1074,17 @@ function initRuntimeConfig(app: DocGen) {
 		repository: application.repositoryLink,
 		demoScripts: scripts.map(s => s.name),
 		demoStyles: application.demoStyles,
+		spa: application.spa,
+		symbols: allSymbols
+			.filter(s => s.flags & Flags.Export)
+			.map(s => ({
+				name: s.name,
+				tagName: s.docs?.tagName,
+				icon: s.docs?.content?.find(c => c.tag === 'icon')
+					?.value as string,
+				kind: s.kind,
+				href: getHref(s),
+			})),
 	};
 
 	return scripts;
@@ -1102,9 +1111,17 @@ export function render(app: DocGen, output: Output): File[] {
 			: []);
 
 	modules = [];
-	const extraFiles = extraDocs.flatMap(section =>
-		section.items.map(renderExtraFile),
-	);
+
+	let hasIndex = false;
+	const extraFiles = extraDocs.flatMap(section => {
+		return (
+			section.items?.map(f => {
+				if (f.index) hasIndex = true;
+				return renderExtraFile(f);
+			}) ?? []
+		);
+	});
+
 	const staticFiles: File[] = [
 		...demoScripts,
 		...scripts,
@@ -1196,27 +1213,17 @@ export function render(app: DocGen, output: Output): File[] {
 		doc.content = header + doc.content + footer;
 	});
 
-	const readme = existsSync(readmePath)
-		? readFileSync(readmePath, 'utf8')
-		: '';
-	const content = readme ? Markdown(readme) : '';
+	if (!hasIndex) {
+		const readme = existsSync(readmePath)
+			? readFileSync(readmePath, 'utf8')
+			: '';
+		const content = readme ? Markdown(readme) : '';
 
-	if (version) {
-		files.push({
-			name: `index.html`,
-			content:
-				getConfigScript('../version.json') +
-				header +
-				content +
-				'</c-router>' +
-				footer,
-		});
-	} else
 		files.push({
 			name: 'index.html',
-			content: header + content + '</c-router>' + footer,
+			content: header + content + footer,
 		});
-
+	}
 	files.push(...staticFiles);
 
 	const result: File[] = version

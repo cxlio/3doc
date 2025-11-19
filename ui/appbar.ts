@@ -8,6 +8,8 @@ import {
 	tsx,
 } from '@cxl/ui';
 
+import { DocSearch } from './search.js';
+
 export class DocAppbar extends Appbar {
 	sticky = true;
 }
@@ -22,6 +24,7 @@ component(DocAppbar, {
 					{ id: 'appbar-toolbar' },
 					tsx(NavbarToggle, { target: 'navbar' }),
 					tsx(Flex, { grow: true }, CONFIG.packageName),
+					tsx(DocSearch),
 					tsx(IconToggleTheme, { persistkey: '3doc.theme' }),
 				),
 			);
