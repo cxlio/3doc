@@ -1,18 +1,23 @@
 import {
 	FieldBar,
 	Autocomplete,
+	AppbarContextual,
 	C,
 	Option,
 	Icon,
+	IconButton,
 	InputOption,
+	Toggle,
 	component,
 	Component,
 	be,
+	breakpoint,
 	css,
 	get,
 	tsx,
 	onLoad,
 	renderEach,
+	merge,
 } from '@cxl/ui';
 
 import type { Symbol } from './root.js';
@@ -22,7 +27,16 @@ export class DocSearch extends Component {}
 component(DocSearch, {
 	tagName: 'doc-search',
 	augment: [
-		css(``),
+		css(`
+:host { display: contents; }
+c-appbar-contextual {
+	position: absolute;
+	inset: 0;
+	background-color: var(--cxl-color-surface);
+	color: var(--cxl-color-on-surface);
+	z-index: 1;
+}
+		`),
 		$ => {
 			const results = be<Symbol[]>([]);
 
@@ -44,6 +58,12 @@ component(DocSearch, {
 				}),
 			);
 			card.style.maxHeight = '50%';
+			const contextual = tsx(AppbarContextual);
+			const iconButton = tsx(
+				Toggle,
+				{ target: contextual },
+				tsx(IconButton, { icon: 'search' }),
+			);
 			const search = tsx(
 				FieldBar,
 				{ size: -2 },
@@ -62,9 +82,23 @@ component(DocSearch, {
 				results.next(CONFIG.symbols);
 			}
 
-			$.shadowRoot?.append(search);
+			$.shadowRoot?.append(contextual, iconButton);
 
-			return onLoad().tap(buildSearch);
+			return merge(
+				onLoad().tap(buildSearch),
+				breakpoint($.parentElement ?? $).tap(bp => {
+					if (bp === 'xsmall') {
+						contextual.style.display = '';
+						iconButton.style.display = '';
+						contextual.append(search);
+					} else {
+						contextual.open = false;
+						contextual.style.display = 'none';
+						iconButton.style.display = 'none';
+						$.shadowRoot?.append(search);
+					}
+				}),
+			);
 		},
 	],
 });
