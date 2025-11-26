@@ -912,8 +912,7 @@ function Header(config: string, scripts: File[]) {
 doc-ct { gap:8px;margin-bottom:24px;white-space:wrap;font:var(--cxl-font-code);font-size:18px;display:flex;align-items:center; }
 c-page { opacity: 0; }
 c-page[ready] { opacity: 1; }
-#appbar-toolbar {max-width: 1200px; margin: auto; width: 100%}
-</style></head>
+#appbar-toolbar {max-width: 1200px; margin: auto; width: 100%}</style></head>
 <c-page><doc-appbar></doc-appbar>${Navbar(pkg)}<c-body>`;
 }
 

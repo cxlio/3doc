@@ -1,7 +1,8 @@
-import { Kind, Flags } from '@cxl/dts/enum.js';
+import { Kind, Flags } from '../dts/enum.js';
+import { GroupTitle } from './localization.js';
 
-import type { Documentation, DocumentationContent } from '@cxl/dts';
-export { Kind, Flags };
+import type { Node, Output, Documentation, DocumentationContent } from '../dts';
+import type { DocGen, File } from './index.js';
 
 export interface SummaryJson {
 	index: Summary[];
@@ -20,29 +21,6 @@ export interface Summary {
 	resolvedType?: string | Summary;
 }
 
-export const GroupTitle: Record<number, string> = {
-	[Kind.Constant]: 'Constants',
-	[Kind.Variable]: 'Variables',
-	[Kind.Interface]: 'Interfaces',
-	[Kind.Class]: 'Classes',
-	[Kind.Property]: 'Properties',
-	[Kind.Method]: 'Methods',
-	[Kind.Getter]: 'Getters',
-	[Kind.Setter]: 'Setters',
-	[Kind.Constructor]: 'Constructor',
-	[Kind.Function]: 'Functions',
-	[Kind.Enum]: 'Enums',
-	[Kind.Component]: 'Components',
-	[Kind.Attribute]: 'Attributes',
-	[Kind.TypeAlias]: 'Type Alias',
-	[Kind.CallSignature]: 'Call Signature',
-	[Kind.ConstructSignature]: 'Construct Signature',
-	[Kind.Event]: 'Events',
-	[Kind.IndexSignature]: 'Index Signature',
-	[Kind.Export]: 'Exports',
-	[Kind.Namespace]: 'Namespaces',
-};
-
 function sortByName(a: { name: string }, b: { name: string }) {
 	return (a.name ?? '') < (b.name ?? '') ? -1 : 1;
 }
@@ -53,29 +31,17 @@ function getDocValue(content: DocumentationContent['value']) {
 	return content.map(doc => doc.value).join(' ');
 }
 
-export interface DocgenOptions {
-	summaryJson: SummaryJson;
-	summary: Summary;
-	link?: (node: Summary) => string;
-}
-
 function getHref(node: Summary) {
 	return node.name ? `docs/ui-${node.name}` : undefined;
 }
 
-export function createLink(node: Summary) {
+export function link(node: Summary) {
 	const href = getHref(node);
 	const name = node.name ?? '?';
 	return href ? `[${name}](${href})` : name;
 }
 
-export function docgen({
-	summary,
-	summaryJson,
-	link = createLink,
-}: DocgenOptions) {
-	const all = summaryJson.index;
-
+export function renderNode(node: Node, all: Node[]) {
 	function getRef(type: string | number | Summary | undefined) {
 		if (!type || typeof type === 'string') return;
 		if (typeof type === 'number') return all.find(n => n.id === type);
@@ -347,17 +313,6 @@ ${value}
 		return `${extendStr.length ? `extends ${extendStr}` : ''}`;
 	}
 
-	/*function renderImport(node: Summary) {
-		const tagName = node.docs?.tagName;
-		if (node.kind !== Kind.Component || !tagName) return undefined;
-		return (
-			<>
-				<h2>Importing</h2>
-				<CoaxialImporting summary={node}></CoaxialImporting>
-			</>
-		);
-	}*/
-
 	function renderInherited(node: Summary): string[] {
 		const type = getTypeSummary(node.type);
 		const result = [];
@@ -376,7 +331,7 @@ ${value}
 			);
 
 			if (members.length)
-				result.push(`Inherited from {link(nodeType)}`, ...members);
+				result.push(`Inherited from ${link(nodeType)}`, ...members);
 
 			result.push(...renderInherited(nodeType));
 		}
@@ -384,14 +339,26 @@ ${value}
 		return result;
 	}
 
-	const tagName = summary.kind === Kind.Component && summary.docs?.tagName;
+	const tagName = node.kind === Kind.Component && node.docs?.tagName;
 	if (!tagName) return '';
 
 	return `# ${tagName}
-${summary.type && renderExtends(summary.type)}
+${node.type && renderExtends(node.type)}
 
-${renderDocumentation(summary)}
-${Members(summary)}
-${renderInherited(summary)}
+${renderDocumentation(node)}
+${Members(node)}
+${renderInherited(node)}
 	`;
+}
+
+export function render(_app: DocGen, output: Output): File[] {
+	const index = Object.values(output.index);
+	const md = index.map(d => renderNode(d, index)).join('');
+
+	return [
+		{
+			name: 'index.md',
+			content: md,
+		},
+	];
 }

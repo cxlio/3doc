@@ -97,6 +97,10 @@ export const Parameters = {
 		help: 'Enables rendering of markdown syntax within symbol descriptions.',
 		type: 'boolean',
 	},
+	markdownSummary: {
+		help: 'Enables output of documentation as markdown summary.',
+		type: 'boolean',
+	},
 	typeRoots: {
 		help: 'Specify additional type root directories (paths) for TypeScript projects (can be used multiple times).',
 		type: 'string',
@@ -257,6 +261,13 @@ export async function buildDocs(
 			summary
 				.render(docgenConfig, json)
 				.map(f => writeFile(f, outputDir)),
+		);
+	}
+
+	if (args.markdownSummary) {
+		const { render } = await import('./render-md.js');
+		await Promise.all(
+			render(docgenConfig, json).map(f => writeFile(f, outputDir)),
 		);
 	}
 

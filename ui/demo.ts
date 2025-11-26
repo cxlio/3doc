@@ -1,6 +1,5 @@
 import { component } from '@cxl/ui';
 import { DocDemoBare } from './demo-bare.js';
-import hljs from 'highlight.js/lib/core';
 
 /**
  * Defines a demo component that displays interactive code examples within an iframe,
@@ -12,20 +11,36 @@ import hljs from 'highlight.js/lib/core';
  * @alpha
  */
 export class DocDemo extends DocDemoBare {
-	header =
-		'<style>html{overflow:hidden;color: var(--cxl-color-on-background);background-color:var(--cxl-color-background)}</style>' +
-		`${CONFIG.demoStyles ? `<style>${CONFIG.demoStyles}</style>` : ''}${
-			CONFIG.demoScripts
-				?.map(s => `<script type="module" src="${s}"></script>`)
-				.join('') ?? ''
-		}`;
+	header = this.getHeader();
+
+	hljsCss = 'hljs.css';
 
 	formatter?: (src: string) => string = (source: string) => {
 		return (
-			`<link rel="stylesheet" href="hljs.css" />` +
+			`<link rel="stylesheet" href="${this.hljsCss}" />` +
 			hljs.highlight(source, { language: 'html' }).value
 		);
 	};
+
+	protected getHeader() {
+		const header =
+			'<style>html{overflow:hidden;color: var(--cxl-color-on-background);background-color:var(--cxl-color-background)}</style>';
+		if (typeof CONFIG !== 'undefined') {
+			return (
+				header +
+				`${
+					CONFIG.demoStyles
+						? `<style>${CONFIG.demoStyles}</style>`
+						: ''
+				}${
+					CONFIG.demoScripts
+						?.map(s => `<script type="module" src="${s}"></script>`)
+						.join('') ?? ''
+				}`
+			);
+		}
+		return header;
+	}
 }
 
 component(DocDemo, {

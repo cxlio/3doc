@@ -7,10 +7,10 @@ import {
 	observeChildren,
 	tsx,
 } from '@cxl/ui';
-import hljs from 'highlight.js/lib/core';
-import xml from 'highlight.js/lib/languages/xml';
 
-hljs.registerLanguage('html', xml);
+declare global {
+	var hljs: typeof import('highlight.js').default;
+}
 
 export class BlogCode extends Component {
 	formatter?: (src: string) => string = (source: string) => {

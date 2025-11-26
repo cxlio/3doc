@@ -12,6 +12,7 @@
 		"render-html.ts",
 		"render-json.ts",
 		"render-summary.ts",
+		"render-md.ts",
 		"localization.ts"
 	]
 }
