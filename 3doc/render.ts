@@ -41,6 +41,8 @@ export interface VersionJson {
 	all: string[];
 }
 
+export type BuildDocsOptions = Omit<ParametersResult<typeof Parameters>, '$'>;
+
 export const Parameters = {
 	repository: {
 		type: 'string',
@@ -183,7 +185,7 @@ export function parseExample(value: string) {
 }
 
 export async function buildDocs(
-	config: ParametersResult<typeof Parameters>,
+	config: BuildDocsOptions,
 	writeFile: (file: File, outDir: string) => void,
 ) {
 	const args = {
