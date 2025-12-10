@@ -357,10 +357,10 @@ function renderType(node: Node): string | Summary {
 	if (node.kind === Kind.Reference && node.type) node = node.type;
 
 	if (node.kind === Kind.ClassType) {
-		const children: Summary[] = [];
+		let children: Summary[] | undefined;
 		node.children?.forEach(child => {
 			if (child.kind !== Kind.Reference) return;
-			children.push({
+			(children ??= []).push({
 				kind: Kind.Reference,
 				type: child.type?.id,
 			});
@@ -375,7 +375,8 @@ function renderType(node: Node): string | Summary {
 	if (node.kind === Kind.BaseType) return node.name;
 	if (
 		node.flags & Flags.External ||
-		node.flags & Flags.DefaultLibrary ||
+		node.flags &
+			Flags.DefaultLibrary /*node.kind !== Kind.ObjectType &&*/ ||
 		(node.kind !== Kind.ObjectType &&
 			node.kind !== Kind.FunctionType &&
 			node.kind !== Kind.Function &&
@@ -393,10 +394,16 @@ function renderType(node: Node): string | Summary {
 		? node.parameters.map(renderNode)
 		: undefined;
 
+	const children =
+		node.kind === Kind.ObjectType || node.kind === Kind.TypeUnion
+			? node.children?.map(renderNode)
+			: undefined;
+
 	return {
 		id: node.id,
 		name: node.name || undefined,
 		parameters,
+		children,
 		kind: node.kind,
 		flags: node.flags || undefined,
 		docs: node.docs,

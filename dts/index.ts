@@ -1785,6 +1785,9 @@ function buildTsconfig(
 	moduleMap = {};
 	exportIndex = {};
 	builtReferences = [];
+	sourceFiles = [];
+	extraModules = [];
+	currentIndex = {};
 
 	const result = {
 		modules: (extraModules ||= []),
