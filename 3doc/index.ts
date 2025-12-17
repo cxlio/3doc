@@ -185,7 +185,7 @@ export interface DocGen {
 	noHtml?: boolean;
 }
 
-program({}, async ({ log }) => {
+await program({}, async ({ log }) => {
 	async function writeFile(file: File, out: string) {
 		const name = file.name;
 		log(`Writing ${name}${file.node ? ` from ${file.node.name}` : ''}`);
@@ -193,7 +193,7 @@ program({}, async ({ log }) => {
 	}
 
 	try {
-		buildDocs(parseArgv(Parameters), writeFile);
+		await buildDocs(parseArgv(Parameters), writeFile);
 	} catch (e) {
 		console.error(e);
 		process.exitCode = 1;

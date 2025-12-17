@@ -244,7 +244,8 @@ function _printNode(node: Node, visited: Node[] = []): PrintableNode {
 		flags,
 	} = node;
 	const flagText: string[] = [];
-	if (flags) for (const i in Flags) if (flags & +Flags[i]) flagText.push(i);
+	if (flags)
+		for (const i in Flags) if (flags & +(Flags[i] ?? 0)) flagText.push(i);
 
 	if (visited.includes(node))
 		return { name: `circular: ${name}`, flags: flagText, kind: Kind[kind] };
@@ -279,7 +280,7 @@ export function printTsNode(node: ts.Node) {
 		const flagText: string[] = [];
 		if (node.flags)
 			for (const i in NodeFlags)
-				if (node.flags & +NodeFlags[i]) flagText.push(i);
+				if (node.flags & +(NodeFlags[i] ?? 0)) flagText.push(i);
 		return {
 			...node,
 			parent: undefined,
@@ -581,11 +582,11 @@ function getJsDocText(doc: ts.JSDocTag | ts.JSDocComment): string {
 function mergeJsDocComment(content: DocumentationContent[], doc: ts.JSDocTag) {
 	// Get whitespace after tag
 	const newContent = `\n${getJsDocText(doc)}`;
+	const existing = content[content.length - 1];
 
-	if (content.length > 0) {
-		const old = content[content.length - 1].value || '';
-		if (typeof old === 'string')
-			content[content.length - 1].value = old + newContent;
+	if (existing) {
+		const old = existing.value || '';
+		if (typeof old === 'string') existing.value = old + newContent;
 		else old.push({ value: newContent });
 	} else content.push({ value: newContent });
 }
@@ -961,7 +962,7 @@ function isCxlAttribute(node: ts.Declaration, result: Node) {
 
 function getCxlRole(node: ts.CallExpression): string {
 	const id = node.arguments[0];
-	return tsLocal.isStringLiteral(id) ? id.text : '';
+	return id && tsLocal.isStringLiteral(id) ? id.text : '';
 }
 
 function findBaseComponent(node: ts.ClassDeclaration) {
@@ -1656,8 +1657,9 @@ function collectExports(symbol: ts.Symbol) {
 	});
 }
 
-function parseSourceFile(sourceFile: ts.SourceFile) {
-	if (moduleMap[sourceFile.fileName]) return moduleMap[sourceFile.fileName];
+function parseSourceFile(sourceFile: ts.SourceFile): Node {
+	const existing = moduleMap[sourceFile.fileName];
+	if (existing) return existing;
 	const result = createNode(sourceFile);
 
 	moduleMap[sourceFile.fileName] = result;

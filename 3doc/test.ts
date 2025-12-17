@@ -21,7 +21,7 @@ export default spec('docgen', s => {
 				const [A] = parse({
 					source: `type A<T> = { [P in keyof T]: T[P]; }`,
 				});
-				const R = SignatureText(A);
+				const R = A && SignatureText(A);
 				a.equal(
 					R,
 					'A&lt;T&gt; = { [P in keyof <a href="#s2">T</a>]: <a href="#s2">T</a>[<a href="#s3">P</a>] }',
@@ -38,7 +38,7 @@ export default spec('docgen', s => {
 	}
 				`,
 				});
-				const R = SignatureText(C);
+				const R = C && SignatureText(C);
 				a.equal(
 					R,
 					'getRegisteredComponents(): { [x: string]: typeof Component }',
@@ -51,7 +51,7 @@ export default spec('docgen', s => {
 				const [A] = parse({
 					source: `function A(): { type: 'A' | 'B' } { return { type: 'A' } }`,
 				});
-				const R = SignatureText(A);
+				const R = A && SignatureText(A);
 				a.equal(R, `A(): { type: 'A' | 'B' }`);
 			});
 			/*it.test('render function type', a => {
@@ -70,7 +70,7 @@ export default spec('docgen', s => {
 				const [A] = parse({
 					source: `type A<T> = { [P in keyof T]: T[P]; } & { name: string };`,
 				});
-				const R = SignatureText(A);
+				const R = A && SignatureText(A);
 				a.equal(
 					R,
 					'A&lt;T&gt; = { [P in keyof <a href="#s2">T</a>]: <a href="#s2">T</a>[<a href="#s3">P</a>] } & { name: string }',
@@ -85,7 +85,7 @@ export default spec('docgen', s => {
 					interface Component { }
 				`,
 				});
-				const R = SignatureText(A);
+				const R = A && SignatureText(A);
 				a.equal(
 					R,
 					'A&lt;T extends <a href="extends--Component.html">Component</a>&gt; = keyof <a href="#s2">T</a>',

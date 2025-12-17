@@ -1,4 +1,11 @@
-import { Documentation, Node, Kind, Flags, Output } from '../dts/index.js';
+import {
+	Documentation,
+	DocumentationContent,
+	Node,
+	Kind,
+	Flags,
+	Output,
+} from '../dts/index.js';
 import { basename } from 'path';
 import { existsSync } from 'fs';
 
@@ -12,6 +19,10 @@ declare module '../dts/index.js' {
 		__3docSummaryNode?: Summary;
 	}
 }
+
+export { Kind } from '../dts/index.js';
+
+export type Example = { tagName: string; title: string; html: string };
 
 export interface SummaryJson {
 	index: Summary[];
@@ -121,7 +132,7 @@ function getPageName(page: Node) {
 	if (page.kind === Kind.Namespace)
 		return `ns--${escapeFileName(page.name)}.html`;
 
-	const source = Array.isArray(page.source) ? page.source[0] : page.source;
+	const source = page.source;
 
 	if (!source)
 		throw new Error(`Source not found for page node "${page.name}"`);
@@ -227,8 +238,9 @@ function _renderType(type: Node): string {
 			return 'Symbol';
 		case Kind.UnknownType:
 			return 'unknown';
+		default:
+			return Signature(type);
 	}
-	return Signature(type);
 }
 
 function FunctionType(node: Node) {
@@ -269,9 +281,9 @@ function Parameter(p: Node) {
 function MappedType(type: Node) {
 	if (!type.children?.length || !type.type) return '?';
 	const [K, T] = type.children;
-	return `{ [${renderType(K)} in ${renderType(T)}]: ${renderType(
-		type.type,
-	)} }`;
+	return K && T
+		? `{ [${renderType(K)} in ${renderType(T)}]: ${renderType(type.type)} }`
+		: '';
 }
 
 function TypeParameter(type: Node) {
@@ -411,19 +423,18 @@ function renderType(node: Node): string | Summary {
 		typeP,
 		tsconfig:
 			node.flags & Flags.Export && node.source?.tsconfig
-				? basename(node.source?.tsconfig)
+				? basename(node.source.tsconfig)
 				: undefined,
 	};
 }
 
 function renderTypeParam(node: Node): Summary {
-	const constraintType = node
-		? node.kind === Kind.Reference &&
-		  node.type?.id !== undefined &&
-		  node.type.flags & Flags.Export
+	const constraintType =
+		node.kind === Kind.Reference &&
+		node.type?.id !== undefined &&
+		node.type.flags & Flags.Export
 			? node.type.id
-			: renderType(node)
-		: undefined;
+			: renderType(node);
 
 	return {
 		id: node.id,
@@ -464,7 +475,7 @@ function renderNode(node: Node): Summary {
 	}
 
 	const resolvedType = node.resolvedType
-		? node.resolvedType?.type?.type === node
+		? node.resolvedType.type?.type === node
 			? node.resolvedType.name
 			: renderType(node.resolvedType)
 		: undefined;
@@ -482,7 +493,7 @@ function renderNode(node: Node): Summary {
 		children,
 		tsconfig:
 			node.flags & Flags.Export && node.source?.tsconfig
-				? basename(node.source?.tsconfig)
+				? basename(node.source.tsconfig)
 				: undefined,
 	});
 }
@@ -491,20 +502,59 @@ function nodeFilter(p: Node) {
 	return hasOwnPage(p) || p.kind === Kind.TypeAlias;
 }
 
-export function render(app: DocGen, output: Output): File[] {
+export function renderJson(output: Output): SummaryJson {
 	const index = Object.values(output.index)
 		.filter(nodeFilter)
 		.map<Summary>(renderNode)
 		.sort(sortByName);
 
-	const version = app.modulePackage?.version;
+	return { index };
+}
+
+export function flatDocumentationContent(doc: DocumentationContent[] | string) {
+	if (typeof doc === 'string') return doc;
+	return doc.map(d => d.value).join(' ');
+}
+
+export function findExamples(node: Summary, tagName = node.name): Example[] {
+	const result: Example[] = [];
+
+	tagName ||= node.docs?.tagName;
+
+	if (node.docs?.alpha || !tagName) return result;
+
+	if (node.docs?.content)
+		for (const content of node.docs.content) {
+			if (content.tag === 'demo' || content.tag === 'example') {
+				let caption;
+				const html = flatDocumentationContent(content.value).replace(
+					/<caption>(.+?)<\/caption>/,
+					(_, val) => {
+						caption = val;
+						return '';
+					},
+				);
+				const title = tagName
+					? `${tagName}[${caption || node.name}]`
+					: node.docs.tagName || '?';
+				result.push({ tagName, title, html });
+			}
+		}
+
+	if (node.children)
+		for (const child of node.children)
+			result.push(...findExamples(child, tagName || node.docs?.tagName));
+
+	return result;
+}
+
+export function render(app: DocGen, output: Output): File[] {
+	const version = app.modulePackage.version;
 
 	return [
 		{
 			name: version ? `${version}/summary.json` : 'summary.json',
-			content: JSON.stringify({
-				index,
-			}),
+			content: JSON.stringify(renderJson(output)),
 		},
 	];
 }

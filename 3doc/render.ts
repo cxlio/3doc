@@ -184,9 +184,40 @@ export function parseExample(value: string) {
 	return { title: '', value };
 }
 
+export function buildDts(args: BuildDocsOptions) {
+	const { file, typeRoots, rootDir } = args;
+
+	const dtsOptions: BuildOptions = {
+		rootDir,
+		exportsOnly: true,
+		customJsDocTags: args.customJsDocTags,
+		cxlExtensions: args.cxlExtensions || false,
+		forceExports: args.exports,
+		followReferences: args.followReferences,
+	};
+
+	return file?.[0]
+		? buildConfig(
+				{
+					compilerOptions: {
+						allowJs: true,
+						rootDir: dirname(file[0]),
+						sourceMap: false,
+						typeRoots: typeRoots || [],
+						noEmit: true,
+						lib: ['es2021'],
+					},
+					files: file,
+				},
+				process.cwd(),
+				dtsOptions,
+		  )
+		: build(args.tsconfig, dtsOptions);
+}
+
 export async function buildDocs(
 	config: BuildDocsOptions,
-	writeFile: (file: File, outDir: string) => void,
+	writeFile: (file: File, outDir: string) => Promise<void>,
 ) {
 	const args = {
 		outputDir: './docs',
@@ -211,7 +242,7 @@ export async function buildDocs(
 	const outputDir = args.outputDir;
 	const pkgRepo = await readJson<Package>(args.packageJson);
 
-	args.packageRoot ??= dirname(resolve(args.packageJson));
+	args.packageRoot ||= dirname(resolve(args.packageJson));
 	await mkdirp(outputDir);
 	await mkdirp(outputDir + '/' + pkgRepo.version);
 
@@ -220,36 +251,12 @@ export async function buildDocs(
 		await doClean(join(outputDir, pkgRepo.version));
 	}
 
-	if (args.repository === undefined && pkgRepo?.repository) {
+	if (args.repository === undefined && pkgRepo.repository) {
 		const repo = pkgRepo.repository;
 		args.repository = typeof repo === 'string' ? repo : repo.url;
 	}
 
-	const dtsOptions: BuildOptions = {
-		rootDir: args.rootDir,
-		exportsOnly: true,
-		customJsDocTags: args.customJsDocTags,
-		cxlExtensions: args.cxlExtensions || false,
-		forceExports: args.exports,
-		followReferences: args.followReferences,
-	};
-	const json = args.file?.length
-		? buildConfig(
-				{
-					compilerOptions: {
-						allowJs: true,
-						rootDir: dirname(args.file[0]),
-						sourceMap: false,
-						typeRoots: args.typeRoots || [],
-						noEmit: true,
-						lib: ['es2021'],
-					},
-					files: args.file,
-				},
-				process.cwd(),
-				dtsOptions,
-		  )
-		: build(args.tsconfig, dtsOptions);
+	const json = buildDts(args);
 
 	const docgenConfig: DocGen = {
 		...args,

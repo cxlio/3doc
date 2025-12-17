@@ -22,7 +22,7 @@ export interface Summary {
 }
 
 function sortByName(a: { name: string }, b: { name: string }) {
-	return (a.name ?? '') < (b.name ?? '') ? -1 : 1;
+	return a.name < b.name ? -1 : 1;
 }
 
 function getDocValue(content: DocumentationContent['value']) {
@@ -94,7 +94,7 @@ export function renderNode(node: Node, all: Node[]) {
 	}
 
 	function objectType(node: Summary) {
-		const result = node.children?.map(signature).join(' | ');
+		const result = node.children?.map(signature).join(' | ') ?? '';
 		return `{ ${result} }`;
 	}
 
@@ -112,7 +112,7 @@ export function renderNode(node: Node, all: Node[]) {
 			case Kind.BaseType:
 				return type.name ?? '?';
 			case Kind.ObjectType:
-				return objectType(type) ?? '?';
+				return objectType(type);
 			case Kind.Array:
 				return `${renderType(type.type)}[]`;
 			case Kind.Interface:
@@ -224,7 +224,7 @@ ${renderDocumentation(node)}
 				!filter?.(child)
 			)
 				(groups[child.kind] ??= {
-					name: GroupTitle[child.kind],
+					name: GroupTitle[child.kind] ?? '',
 					nodes: [],
 				}).nodes.push(child);
 
@@ -238,7 +238,7 @@ ${group.nodes.map(renderMember)}
 	}
 
 	function Demo(value: string) {
-		let title;
+		let title: string | undefined;
 		value = value.replace(/<caption>(.+?)<\/caption>/, (_, val) => {
 			title = val;
 			return '';
@@ -270,7 +270,7 @@ ${value}
 	function renderDocumentation(node: Summary) {
 		const docs = node.docs;
 
-		if (!docs || !docs.content) return '';
+		if (!docs?.content) return '';
 
 		const related: DocumentationContent[] = [];
 		const result = docs.content.map(doc => {

@@ -113,9 +113,9 @@ function ObjectType(node: Node) {
 function MappedType(type: Node) {
 	if (!type.children?.length || !type.type) return '?';
 	const [K, T] = type.children;
-	return `{ [${renderType(K)} in ${renderType(T)}]: ${renderType(
-		type.type,
-	)} }`;
+	return K && T
+		? `{ [${renderType(K)} in ${renderType(T)}]: ${renderType(type.type)} }`
+		: '';
 }
 
 function TypeParameter(type: Node) {
@@ -185,8 +185,9 @@ export function renderType(type: Node): string {
 			return 'Symbol';
 		case Kind.UnknownType:
 			return 'unknown';
+		default:
+			return Signature(type);
 	}
-	return Signature(type);
 }
 
 export function Type(type?: Node): string {
@@ -393,7 +394,7 @@ function getDocValue(content: DocumentationContent['value']) {
 function Documentation(node: Node) {
 	const docs = node.docs;
 
-	if (!docs || !docs.content) return '';
+	if (!docs?.content) return '';
 
 	const related: DocumentationContent[] = [];
 
@@ -455,9 +456,7 @@ function MemberBody(c: Node) {
 }
 
 function MemberCard(c: Node) {
-	const src =
-		c.source &&
-		getSourceLink(Array.isArray(c.source) ? c.source[0] : c.source);
+	const src = c.source && getSourceLink(c.source);
 	return `<doc-card id="s${c.id}"${src ? ` src="${src}"` : ''}>${MemberBody(
 		c,
 	)}</doc-card>`;
@@ -492,7 +491,7 @@ function Link(node: Node, content?: string, parent?: Node): string {
 
 	const href = getHref(node, parent);
 
-	if (application?.spa && href[0] !== '#')
+	if (application.spa && href[0] !== '#')
 		return `<doc-a href="${href}">${name}</doc-a>`;
 
 	return `<a href="${href}">${name}</a>`;
@@ -539,7 +538,7 @@ function ModuleTitle(node: Node) {
 		(node.kind === Kind.Component ? Chip('component') : '') +
 		(node.kind === Kind.Namespace ? Chip('namespace') : '') +
 		(node.kind === Kind.Enum ? Chip('enum') : '') +
-		(docs && docs.role ? Chip(`role: ${docs.role}`) : '') +
+		(docs?.role ? Chip(`role: ${docs.role}`) : '') +
 		(node.flags & Flags.DeclarationMerge ? Chip('declaration merge') : '') +
 		`</c-flex>`;
 	const subtitle =
@@ -678,9 +677,7 @@ function isExcluded({ source }: Node) {
 	const exclude = application.exclude;
 	if (!exclude) return false;
 	if (source) {
-		const found = Array.isArray(source)
-			? source.find(s => exclude.includes(s.name))
-			: exclude.includes(source.name);
+		const found = exclude.includes(source.name);
 		if (found) return true;
 	}
 
@@ -806,7 +803,7 @@ function ModuleNavbar(node: Node) {
 	const href = getHref(node);
 	return (
 		`${Item(`<i>${moduleName}</i>`, href)}` +
-		(node.children?.length
+		(node.children.length
 			? node.children
 					.sort(sortNode)
 					.map(c => {
@@ -931,7 +928,7 @@ function getPageName(page: Node) {
 	if (page.kind === Kind.Namespace)
 		return `ns--${escapeFileName(page.name)}.html`;
 
-	const source = Array.isArray(page.source) ? page.source[0] : page.source;
+	const source = page.source;
 
 	if (!source)
 		throw new Error(`Source not found for page node "${page.name}"`);
@@ -972,8 +969,8 @@ function Module(module: Node) {
 		module.flags & Flags.Internal
 	)
 		return [];
-	const result = module.children?.filter(hasOwnPage).map(Page);
-	return result ? result.concat(Page(module)) : [Page(module)];
+	const result = module.children.filter(hasOwnPage).map(Page);
+	return result.concat(Page(module));
 }
 
 function getExternalLink(url: string) {
@@ -1006,21 +1003,22 @@ function Markdown(content: string, inline = false, allowAllHtml = false) {
 		h5: 'h6',
 	};
 	rules.heading_open = (tokens, idx) =>
-		`<c-t font="${map[tokens[idx].tag as keyof typeof map]}">`;
+		`<c-t font="${map[tokens[idx]?.tag as keyof typeof map]}">`;
 	rules.heading_close = () => `</c-t>`;
-	rules.code_block = (tokens, idx) => Code(tokens[idx].content);
-	rules.fence = (tokens, idx) => Code(tokens[idx].content, tokens[idx].info);
+	rules.code_block = (tokens, idx) => Code(tokens[idx]?.content ?? '');
+	rules.fence = (tokens, idx) =>
+		Code(tokens[idx]?.content ?? '', tokens[idx]?.info ?? '');
 	rules.code_inline = (tokens, idx) => {
-		const value = tokens[idx].content;
+		const value = tokens[idx]?.content ?? '';
 		const isLink = IsLink.test(value);
 		return `<code>${isLink ? value : escape(value)}</code>`;
 	};
 	rules.html_block = (tokens, idx) => {
-		const html = tokens[idx].content;
+		const html = tokens[idx]?.content ?? '';
 		return allowAllHtml ? html : escape(html);
 	};
 	rules.html_inline = (tokens, idx) => {
-		const html = tokens[idx].content;
+		const html = tokens[idx]?.content ?? '';
 		return allowAllHtml || AllowedHtmlTags.test(html) ? html : escape(html);
 	};
 
@@ -1068,8 +1066,8 @@ function initRuntimeConfig(app: DocGen) {
 
 	docgenConfig = {
 		packageName: pkg.name,
-		activeVersion: pkg?.version || '',
-		versions: pkg?.version && 'version.json',
+		activeVersion: pkg.version || '',
+		versions: pkg.version && 'version.json',
 		repository: application.repositoryLink,
 		demoScripts: scripts.map(s => s.name),
 		demoStyles: application.demoStyles,
@@ -1102,7 +1100,7 @@ export function render(app: DocGen, output: Output): File[] {
 	const scripts = getDemoScripts(application.scripts || [], 's');
 	const demoScripts = initRuntimeConfig(app);
 	const readmePath = join(application.packageRoot, 'README.md');
-	const version = app.modulePackage?.version;
+	const version = app.modulePackage.version;
 	extraDocs =
 		app.extra ||
 		(existsSync(readmePath)
@@ -1111,14 +1109,12 @@ export function render(app: DocGen, output: Output): File[] {
 
 	modules = [];
 
-	let hasIndex = false;
+	let needsIndex = true as boolean;
 	const extraFiles = extraDocs.flatMap(section => {
-		return (
-			section.items?.map(f => {
-				if (f.index) hasIndex = true;
-				return renderExtraFile(f);
-			}) ?? []
-		);
+		return section.items.map(f => {
+			if (f.index) needsIndex = false;
+			return renderExtraFile(f);
+		});
 	});
 
 	const staticFiles: File[] = [
@@ -1212,7 +1208,7 @@ export function render(app: DocGen, output: Output): File[] {
 		doc.content = header + doc.content + footer;
 	});
 
-	if (!hasIndex) {
+	if (needsIndex) {
 		const readme = existsSync(readmePath)
 			? readFileSync(readmePath, 'utf8')
 			: '';
