@@ -6,9 +6,18 @@
 	"license": "GPL-3.0",
 	"browser": "./index.bundle.js",
 	"type": "module",
+	"sideEffects": false,
+	"peerDependencies": {
+		"@cxl/ui": "^6.0.0-beta"
+	},
 	"scripts": {
 		"build": "cxl-build",
 		"test": "npm run build test"
+	},
+	"exports": {
+		".": "./index.js",
+		"./docgen.js": "./docgen.js",
+		"./docgen-render.js": "./docgen-render.js"
 	},
 	"bugs": "https://github.com/cxlio/3doc/issues",
 	"repository": {

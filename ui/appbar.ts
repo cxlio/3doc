@@ -1,10 +1,10 @@
 import {
 	Appbar,
 	NavbarToggle,
-	IconToggleTheme,
 	Flex,
-	Toolbar,
 	component,
+	css,
+	media,
 	tsx,
 } from '@cxl/ui';
 
@@ -17,16 +17,12 @@ export class DocAppbar extends Appbar {
 component(DocAppbar, {
 	tagName: 'doc-appbar',
 	augment: [
+		css(media('large', `:host{display:none}`)),
 		$ => {
 			$.append(
-				tsx(
-					Toolbar,
-					{ id: 'appbar-toolbar' },
-					tsx(NavbarToggle, { target: 'navbar' }),
-					tsx(Flex, { grow: true }, CONFIG.packageName),
-					tsx(DocSearch),
-					tsx(IconToggleTheme, { persistkey: '3doc.theme' }),
-				),
+				tsx(NavbarToggle, { target: 'navbar' }),
+				tsx(Flex, { grow: true }, CONFIG.packageName),
+				tsx(DocSearch),
 			);
 		},
 	],

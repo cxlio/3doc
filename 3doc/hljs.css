@@ -1,103 +1,99 @@
+/* --- ChipColors-inspired, low-saturation LIGHT theme --- */
+/* Base neutrals */
 .hljs {
-	display: block;
-	overflow-x: auto;
-	padding: 0.5em;
-	color: #fff;
-	background-color: #102027;
+	color: var(--cxl-color-on-surface);
+	background-color: var(--cxl-color-surface);
 }
 
-.hljs-keyword {
-	color: rgba(255, 110, 64, 1);
-}
-.hljs-operator {
-	color: rgba(255, 204, 188, 1);
-}
-.hljs-pattern-match {
-	color: rgba(255, 110, 64, 1);
-}
-.hljs-pattern-match .hljs-constructor {
-	color: rgba(255, 110, 64, 1);
-}
-.hljs-function {
-	color: rgba(176, 190, 197, 1);
-}
-.hljs-function .hljs-params {
-	color: rgba(236, 239, 241, 1);
-}
-.hljs-function .hljs-params .hljs-typing {
-	color: rgba(222, 193, 106);
-}
-.hljs-module-access .hljs-module {
-	color: rgba(176, 190, 197, 1);
-}
-.hljs-constructor {
-	color: rgba(176, 190, 197, 1);
-}
-.hljs-constructor .hljs-string {
-	color: rgba(255, 158, 128, 1);
-}
+/* Comments: quieter */
 .hljs-comment,
 .hljs-quote {
-	color: rgba(207, 216, 220, 1);
+	color: rgba(51, 65, 85, 0.55); /* slate-600 */
 	font-style: italic;
 }
-.hljs-doctag,
-.hljs-formula {
-	color: rgba(222, 193, 106);
-}
-.hljs-tag {
-	color: rgba(255, 204, 188, 1);
-}
-.hljs-tag .hljs-name {
-	color: rgba(222, 193, 106);
-}
-.hljs-section,
-.hljs-name,
-.hljs-selector-tag,
-.hljs-deletion,
-.hljs-subst {
-	color: rgba(236, 239, 241, 1);
-}
-.hljs-literal {
-	color: rgba(255, 110, 64, 1);
-}
-.hljs-string,
-.hljs-regexp,
-.hljs-addition,
-.hljs-attribute,
-.hljs-meta-string {
-	color: rgba(255, 158, 128, 1);
-}
-.hljs-built_in,
-.hljs-class .hljs-title {
-	color: rgba(255, 110, 64, 1);
-}
-.hljs-attr {
-	color: rgba(176, 190, 197, 1);
-}
 
-.hljs-variable,
-.hljs-template-variable,
-.hljs-type,
+/* Keep most structure neutral */
+.hljs-operator,
+.hljs-punctuation,
+.hljs-subst,
+.hljs-name,
+.hljs-section,
+.hljs-selector-tag,
 .hljs-selector-class,
 .hljs-selector-attr,
 .hljs-selector-pseudo,
-.hljs-number {
-	color: rgba(236, 239, 241, 1);
-}
-.hljs-symbol,
-.hljs-bullet,
-.hljs-link,
-.hljs-meta,
 .hljs-selector-id,
-.hljs-title {
-	color: #ffb300;
+.hljs-variable,
+.hljs-template-variable {
+	color: rgba(15, 23, 42, 0.78);
 }
+
+/* --- Accents (ChipColors foregrounds; used sparingly) --- */
+/* Property / Attribute / tags: cyan/blue accents */
+.hljs-attribute,
+.hljs-attr,
+.hljs-meta-string {
+	color: rgb(18, 152, 186); /* ChipColors.Property fg */
+}
+
+/* Keywords + literals: warm orange */
+.hljs-keyword,
+.hljs-literal,
+.hljs-built_in,
+.hljs-doctag,
+.hljs-formula {
+	color: rgb(184, 90, 0); /* ChipColors.Class fg */
+}
+
+/* Functions / methods: green on name/title only */
+.hljs-function .hljs-title,
+.hljs-title.function_ {
+	color: rgb(36, 143, 71); /* ChipColors.Method fg */
+}
+.hljs-function,
+.hljs-params {
+	color: rgba(15, 23, 42, 0.78);
+}
+
+/* Types / classes / namespaces: indigo (restrained) */
+.hljs-type,
+.hljs-class .hljs-title,
+.hljs-title.class_ {
+	color: rgb(67, 56, 202); /* ChipColors.Namespace fg */
+}
+
+/* Interface title: rose, sparingly */
+.hljs-interface .hljs-title {
+	color: rgb(190, 18, 60); /* ChipColors.Interface fg */
+}
+
+/* Strings: use ChipColors.Class bg as a gentle warm tone (low saturation) */
+.hljs-string,
+.hljs-regexp {
+	color: rgb(184, 90, 0);
+	opacity: 0.85;
+}
+
+/* Numbers: mostly neutral */
+.hljs-number {
+	color: rgba(15, 23, 42, 0.86);
+}
+
+/* Meta / tags: subtle */
+.hljs-meta,
+.hljs-tag {
+	color: rgba(15, 23, 42, 0.65);
+}
+.hljs-tag .hljs-name {
+	color: rgb(18, 152, 186); /* cyan, consistent with attributes */
+}
+
+/* Emphasis */
 .hljs-emphasis {
 	font-style: italic;
 }
 .hljs-strong {
-	font-weight: bold;
+	font-weight: 700;
 }
 .hljs-link {
 	text-decoration: underline;

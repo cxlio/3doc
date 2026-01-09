@@ -48,7 +48,7 @@ function removeHtml(str: string) {
 }
 
 function sortByName(a: Summary, b: Summary) {
-	return (a.name ?? '') < (b.name ?? '') ? -1 : 1;
+	return a.name === b.name ? 0 : (a.name ?? '') < (b.name ?? '') ? -1 : 1;
 }
 
 function hasOwnPage(node: Node) {
@@ -214,7 +214,7 @@ function _renderType(type: Node): string {
 			return type.name;
 		case Kind.TypeAlias:
 		case Kind.BaseType:
-			return type.name;
+			return `${type.name}${TypeArguments(type.typeParameters)}`;
 		case Kind.TypeParameter:
 			return TypeParameter(type);
 		case Kind.ConstructorType:
@@ -359,13 +359,13 @@ export function Type(type?: Node): string {
 }
 
 export function Signature(node: Node): string {
-	if (node.kind === Kind.Module || node.kind === Kind.IndexSignature)
-		return SignatureText(node);
-
-	return `${SignatureText(node)}`;
+	return SignatureText(node);
 }
 
 function renderType(node: Node): string | Summary {
+	// References contain the type parameters not the referenced node.
+	const typeParameters = node.typeParameters;
+
 	if (node.kind === Kind.Reference && node.type) node = node.type;
 
 	if (node.kind === Kind.ClassType) {
@@ -384,7 +384,8 @@ function renderType(node: Node): string | Summary {
 		};
 	}
 
-	if (node.kind === Kind.BaseType) return node.name;
+	if (node.kind === Kind.BaseType)
+		return `${node.name}${TypeArguments(typeParameters)}`;
 	if (
 		node.flags & Flags.External ||
 		node.flags &
@@ -396,10 +397,16 @@ function renderType(node: Node): string | Summary {
 			node.kind !== Kind.TypeUnion &&
 			node.kind !== Kind.Interface)
 	)
-		return removeHtml(Type(node));
+		return removeHtml(
+			`${Type(node)}${
+				typeParameters !== node.typeParameters
+					? TypeArguments(typeParameters)
+					: ''
+			}`,
+		);
 
-	const typeP = node.typeParameters?.length
-		? node.typeParameters.map(renderTypeParam)
+	const typeP = typeParameters?.length
+		? typeParameters.map(renderTypeParam)
 		: undefined;
 
 	const parameters = node.parameters?.length
@@ -421,10 +428,10 @@ function renderType(node: Node): string | Summary {
 		docs: node.docs,
 		type: node.type?.id,
 		typeP,
-		tsconfig:
+		/*tsconfig:
 			node.flags & Flags.Export && node.source?.tsconfig
 				? basename(node.source.tsconfig)
-				: undefined,
+				: undefined,*/
 	};
 }
 
@@ -444,6 +451,17 @@ function renderTypeParam(node: Node): Summary {
 		docs: node.docs,
 		type: constraintType,
 	};
+}
+
+function getResolvedType(node: Node, typeNode?: Node) {
+	const resolvedType = node.resolvedType
+		? node.resolvedType.type?.type === node
+			? node.resolvedType.name
+			: renderType(node.resolvedType)
+		: undefined;
+	if (resolvedType) return resolvedType;
+
+	if (typeNode?.resolvedType) return renderType(typeNode.resolvedType);
 }
 
 function renderNode(node: Node): Summary {
@@ -474,12 +492,6 @@ function renderNode(node: Node): Summary {
 		}
 	}
 
-	const resolvedType = node.resolvedType
-		? node.resolvedType.type?.type === node
-			? node.resolvedType.name
-			: renderType(node.resolvedType)
-		: undefined;
-
 	return (node.__3docSummaryNode = {
 		id: node.id,
 		name: node.name || undefined,
@@ -489,7 +501,7 @@ function renderNode(node: Node): Summary {
 		docs: node.docs,
 		type,
 		typeP,
-		resolvedType: resolvedType === type ? undefined : resolvedType,
+		resolvedType: getResolvedType(node, typeN),
 		children,
 		tsconfig:
 			node.flags & Flags.Export && node.source?.tsconfig
@@ -526,7 +538,7 @@ export function findExamples(node: Summary, tagName = node.name): Example[] {
 	if (node.docs?.content)
 		for (const content of node.docs.content) {
 			if (content.tag === 'demo' || content.tag === 'example') {
-				let caption;
+				let caption = '';
 				const html = flatDocumentationContent(content.value).replace(
 					/<caption>(.+?)<\/caption>/,
 					(_, val) => {

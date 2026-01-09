@@ -17,7 +17,7 @@ import {
 	tsx,
 	of,
 } from '@cxl/ui';
-import { Kind } from './docgen.js';
+import { Kind } from '../dts/enum.js';
 
 class DocSearchPage extends Component {}
 
@@ -76,7 +76,7 @@ ${media(
 												onAction(card).tap(() => {
 													if (
 														!CONFIG.spa &&
-														item.value?.href
+														item.value.href
 													)
 														location.href =
 															item.value.href;
@@ -99,7 +99,7 @@ ${media(
 						for (const item of group.children) {
 							(item as HTMLElement).style.display =
 								!val ||
-								item.textContent?.toLowerCase().includes(val)
+								item.textContent.toLowerCase().includes(val)
 									? ''
 									: 'none';
 						}

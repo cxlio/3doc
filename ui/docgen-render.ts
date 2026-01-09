@@ -1,7 +1,5 @@
 import { T, tsx, Child, sortBy } from '@cxl/ui';
 
-//import { render as markdown } from '@cxl/gbc.markdown';
-
 import { Kind, Flags } from '../dts/enum.js';
 
 import { DocDemo } from './demo.js';
@@ -119,7 +117,7 @@ export function docgenRender({
 			case Kind.BaseType:
 				return [type.name ?? '?'];
 			case Kind.ObjectType:
-				return objectType(type) ?? ['?'];
+				return objectType(type);
 			case Kind.Array:
 				return [...renderType(type.type), '[]'];
 			case Kind.Interface:
@@ -195,9 +193,9 @@ export function docgenRender({
 		const params = node.parameters?.flatMap(signature) ?? [];
 		return [
 			'[',
-			...(params ?? []),
+			...params,
 			']: ',
-			...(node.type ? renderType(node.type) ?? [] : ['?']),
+			...(node.type ? renderType(node.type) : ['?']),
 		];
 	}
 
@@ -244,7 +242,7 @@ export function docgenRender({
 				!filter?.(child)
 			)
 				(groups[child.kind] ??= {
-					name: GroupTitle[child.kind],
+					name: GroupTitle[child.kind] ?? '',
 					nodes: [],
 				}).nodes.push(child);
 
@@ -259,7 +257,7 @@ export function docgenRender({
 	}
 
 	function Demo(value: string): Child[] {
-		let title;
+		let title = '';
 		value = value.replace(/<caption>(.+?)<\/caption>/, (_, val) => {
 			title = val;
 			return '';
@@ -308,7 +306,7 @@ background-color:var(--cxl-color-background)}</style>`;
 	function renderDocumentation(node: Summary): Child[] {
 		const docs = node.docs;
 
-		if (!docs || !docs.content) return [];
+		if (!docs?.content) return [];
 
 		const related: DocumentationContent[] = [];
 		const result = docs.content.flatMap(doc => {

@@ -1,9 +1,10 @@
-import { Application, component, get, ref, tsx } from '@cxl/ui';
+import { Application, component, ref, tsx } from '@cxl/ui';
 
-import { NavList } from './nav-list.js';
+//import { NavList } from './nav-list.js';
 import { Page } from './page.js';
 
-import type { SummaryJson, Kind } from './docgen.js';
+import type { SummaryJson } from './docgen.js';
+import type { Kind } from '../dts/enum.js';
 
 export { Body, Page as UiPage, Drawer, Icon, NavHeadline, Hr } from '@cxl/ui';
 
@@ -41,11 +42,12 @@ component(ComponentList, {
 			const summary = ref<SummaryJson>();
 			fetch('summary.json')
 				.then<SummaryJson>(r => r.json())
-				.then(s => summary.next(s));
+				.then(s => summary.next(s))
+				.catch(e => console.error(e));
 
-			const nav = tsx(NavList, { slot: 'start', summary });
+			//const nav = tsx(NavList, { slot: 'start', summary });
 
-			$.append(nav, tsx(Page, { summary, name: get(nav, 'selected') }));
+			$.append(tsx(Page, { summary }));
 		},
 	],
 });

@@ -1263,11 +1263,14 @@ function serializeReference(node: ts.TypeReferenceType) {
 	);
 	if (type && !type.name) type.name = name;
 
+	const resolvedType =
+		type?.kind === 0 ? getResolvedType(typeObj) : undefined;
+
 	return createNode(node, {
 		name,
 		kind: Kind.Reference,
 		type,
-		//resolvedType,
+		resolvedType,
 		typeParameters: node.typeArguments?.map(serialize),
 	});
 }

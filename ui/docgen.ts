@@ -1,8 +1,5 @@
 import { Kind, Flags } from '../dts/enum.js';
 
-import type { Documentation } from '../dts';
-export { Kind, Flags };
-
 export interface SummaryJson {
 	index: Summary[];
 }
@@ -20,10 +17,27 @@ export interface Summary {
 	resolvedType?: string | Summary;
 	tsconfig?: string;
 }
+export interface DocumentationContent {
+	tag?: string;
+	value:
+		| string
+		| {
+				tag?: string;
+				value: string;
+		  }[];
+}
+export interface Documentation {
+	decorator?: boolean;
+	content?: DocumentationContent[];
+	tagName?: string;
+	role?: string;
+	beta?: boolean;
+	alpha?: boolean;
+}
 
 export function getComponentIcon(item: Summary) {
 	const icon = item.docs?.content?.find(c => c.tag === 'icon')?.value;
-	return (icon as string) ?? 'brick';
+	return (icon as string | undefined) ?? 'brick';
 }
 
 export function docgen(json: SummaryJson) {

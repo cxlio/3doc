@@ -13,7 +13,7 @@ import {
 	groupTitle,
 	jsdocTitle,
 	translate,
-} from './localization';
+} from './localization.js';
 import type { Package } from '@cxl/program';
 import { join, relative } from 'path';
 import { existsSync, readFileSync, readdirSync, statSync } from 'fs';
@@ -318,7 +318,7 @@ function Code(source: string, language?: string) {
 	if (language === 'demo') return Demo({ value: source });
 
 	return `<doc-hl${
-		language ? ` l="${language}"` : ''
+		language ? ` language="${language}"` : ''
 	}><!--${source}--></doc-hl>`;
 }
 
@@ -328,10 +328,12 @@ function Demo(doc: DocumentationContent): string {
 	const demo = application.cxlExtensions
 		? `<doc-demo${
 				application.debug ? ' debug' : ''
-		  }><!--${value}--></doc-demo>`
+		  }><!--${value}--><div slot="toolbar">${
+				title || translate('Example')
+		  }</div></doc-demo>`
 		: Markdown(value);
 
-	return `<c-t font="h6">${title || translate('Example')}</c-t>${demo}`;
+	return demo;
 }
 
 function Example(doc: DocumentationContent) {
@@ -427,7 +429,7 @@ function Documentation(node: Node) {
 }
 
 function ModuleDocumentation(node: Node) {
-	return `<div style="margin-top:32px">${Documentation(node)}</div>`;
+	return `${Documentation(node)}`;
 }
 
 function ParameterDocumentation(node: Node) {
@@ -435,19 +437,23 @@ function ParameterDocumentation(node: Node) {
 }
 
 function MemberBody(c: Node) {
-	let result = `<doc-ct>${Signature(c)}</doc-ct>`;
+	let result = `<doc-hl language="typescript">${Signature(c)}</doc-hl>`;
 
 	if (c.docs) result += Documentation(c);
 
 	if (c.parameters?.length)
 		result +=
-			`<c-t font="subtitle2">${translate('Parameters')}</c-t><ul>` +
+			`<h6><c-t font="title-small">${translate(
+				'Parameters',
+			)}</c-t></h6><dl>` +
 			c.parameters
 				.map(
 					p =>
-						`<li><code>${Parameter(
+						`<dt><code>${Parameter(
 							p,
-						)}</code>${ParameterDocumentation(p)}</li>`,
+						)}</code></dt><dd>${ParameterDocumentation(
+							p,
+						)}</dd></dl>`,
 				)
 				.join('') +
 			'</ul>';
@@ -457,14 +463,14 @@ function MemberBody(c: Node) {
 
 function MemberCard(c: Node) {
 	const src = c.source && getSourceLink(c.source);
-	return `<doc-card id="s${c.id}"${src ? ` src="${src}"` : ''}>${MemberBody(
-		c,
-	)}</doc-card>`;
+	return `<doc-card kind="${Kind[c.kind]}" name="${c.name}" id="s${c.id}"${
+		src ? ` src="${src}"` : ''
+	}>${MemberBody(c)}</doc-card>`;
 }
 
 function ExtendedBy(extendedBy?: Node[]) {
 	return extendedBy
-		? `<div><c-t font="subtitle2">${translate(
+		? `<div><c-t font="title-small">${translate(
 				'Extended By',
 		  )}:</c-t> ${extendedBy
 				.map(ref => (ref.name ? `${Link(ref)}` : ''))
@@ -522,14 +528,21 @@ function sortNode(a: Node, b: Node) {
 	return coef + (a.name > b.name ? 1 : -1);
 }
 
-function TagName(node: Node) {
-	const tagName = node.kind === Kind.Component && node.docs?.tagName;
-	return tagName ? ` <c-t font="subtitle">&lt;${tagName}&gt;</c-t>` : '';
-}
-
 function ModuleTitle(node: Node) {
+	const name = SignatureText(node);
 	const docs = node.docs;
-	const chips =
+	const tags =
+		(docs?.role ? Chip(`role:${docs.role}`) : '') +
+		(node.flags & Flags.DeclarationMerge ? Chip('declaration-merge') : '') +
+		(node.kind === Kind.Component && docs?.tagName
+			? Chip(`&lt;${docs.tagName}&gt;`, 'surface-container')
+			: '');
+
+	return `<doc-page-header kind="${
+		Kind[node.kind]
+	}"><div slot="tags">${tags}</div>${name}</doc-page-header>`;
+
+	/*const chips =
 		`<c-flex gap="8">` +
 		NodeChips(node) +
 		(node.kind === Kind.Module ? Chip('module') : '') +
@@ -548,7 +561,7 @@ function ModuleTitle(node: Node) {
 			? ''
 			: '';
 
-	return `${chips}<c-t font="h3">${SignatureText(node)}${subtitle}</c-t>`;
+	return `${chips}<c-t font="h3">${SignatureText(node)}${subtitle}</c-t>`;*/
 }
 
 /*function getImportUrl(source: Source) {
@@ -575,19 +588,21 @@ function ImportStatement(node: Node) {
 
 function MemberIndexLink(node: Node, parent?: Node) {
 	//const chips = node.flags & Flags.Static ? `${Chip('static')} ` : '';
-	const link = Link(node, undefined, parent);
-	return link.startsWith('<') ? link : `<c>${link}</c>`;
+	return `<doc-member href="${getHref(node, parent)}">${
+		node.name
+	}</doc-member>`;
+	/*const link = Link(node, undefined, parent);
+	return link.startsWith('<') ? link : `<c>${link}</c>`;*/
 }
 
 function MemberGroupIndex({ kind, index }: Group) {
-	return `<c-t font="h6">${groupTitle(kind)}
-		</c-t><doc-grd>${index.join('')}</doc-grd>`;
+	return `<doc-group kind="${Kind[kind]}">${index.join('')}</doc-group>`;
 }
 
 function MemberBodyGroup({ body, kind }: Group) {
 	return body.length === 0
 		? ''
-		: `<c-t font="h5">${groupTitle(kind)}</c-t>${body.join('')}`;
+		: `<c-t font="h6">${groupTitle(kind)}</c-t>${body.join('')}`;
 }
 
 function getEnumMembers(node: Node, children: Node[]) {
@@ -697,7 +712,7 @@ function MemberInherited(type: Node): string {
 						.map(MemberGroupIndex)
 						.join('');
 					if (result)
-						result = `<c-t font="h5">${translate(
+						result = `<c-t font="title-small">${translate(
 							'Inherited from',
 						)} ${Link(c)}</c-t>${result}`;
 					if (c.type.type) result += MemberInherited(c.type.type);
@@ -722,9 +737,9 @@ function Members(node: Node) {
 
 	const inherited = type ? MemberInherited(type) : '';
 	return groups.length || inherited
-		? groups.map(MemberGroupIndex).join('') +
-				inherited +
-				groups.map(MemberBodyGroup).join('')
+		? `<doc-members>${
+				groups.map(MemberGroupIndex).join('') + inherited
+		  }</doc-members>${groups.map(MemberBodyGroup).join('')}`
 		: '';
 }
 
@@ -823,7 +838,7 @@ function ModuleNavbar(node: Node) {
 function Item(title: string, href: string, icon?: string) {
 	if (!href) throw new Error(`No href for "${title}"`);
 
-	const result = `<doc-item href="${href}" ${
+	const result = `<doc-item size="-1" href="${href}" ${
 		application.spa ? '' : 'external'
 	}>${icon ? `<c-icon icon="${icon}"></c-icon>` : ''}${title}</doc-item>`;
 
@@ -847,11 +862,11 @@ function Extra(docs: Section[]) {
 				.join('');
 			return `${title}${items}`;
 		})
-		.join('<c-hr></c-hr>');
+		.join('');
 }
 
 function NavbarExtra() {
-	return `${Extra(extraDocs)}<c-hr></c-hr>`;
+	return `${Extra(extraDocs)}`;
 }
 
 function findOtherVersions(outDir: string, currentVersion: string) {
@@ -867,10 +882,10 @@ function findOtherVersions(outDir: string, currentVersion: string) {
 }
 
 function Navbar(_pkg: Package) {
-	return `<c-drawer id="navbar">
+	return `<nav slot="navbar">
 		${extraDocs.length ? NavbarExtra() : ''}	
 		${modules.sort(sortNode).map(ModuleNavbar).join('')}
-		</c-drawer>`;
+		</nav>`;
 }
 
 function getConfigScript(versions: string) {
@@ -907,10 +922,10 @@ function Header(config: string, scripts: File[]) {
 	return `<!DOCTYPE html>
 <head>${config}${customHeadHtml}<meta charset="utf-8"><meta name="description" content="Documentation for ${title}" />${SCRIPTS}<title>${title} API Reference</title><style>
 doc-ct { gap:8px;margin-bottom:24px;white-space:wrap;font:var(--cxl-font-code);font-size:18px;display:flex;align-items:center; }
-c-page { opacity: 0; }
-c-page[ready] { opacity: 1; }
-#appbar-toolbar {max-width: 1200px; margin: auto; width: 100%}</style></head>
-<c-page><doc-appbar></doc-appbar>${Navbar(pkg)}<c-body>`;
+c-application { opacity: 0; }
+c-application[ready] { opacity: 1; }
+</style></head>
+<doc-app>${Navbar(pkg)}`;
 }
 
 function escapeFileName(name: string, replaceExt = '.html') {
@@ -1134,7 +1149,7 @@ export function render(app: DocGen, output: Output): File[] {
 	];
 	const files: File[] = [...extraFiles, ...output.modules.flatMap(Module)];
 	const versionFiles: File[] = [];
-	const footer = '</c-body></c-application>';
+	const footer = '</doc-app>';
 	const config = getConfigScript(version ? '../version.json' : '');
 
 	const header = Header(config, scripts);
@@ -1158,8 +1173,8 @@ export function render(app: DocGen, output: Output): File[] {
 	}
 
 	if (app.spa) {
-		let content = '<c-router-outlet></c-router-outlet><c-router>';
-		files.forEach(doc => (content += Route(doc)));
+		const routes = files.map(Route).join('');
+		const content = `<c-router>${routes}</c-router>`;
 
 		if (app.sitemap) {
 			const base = app.sitemap;

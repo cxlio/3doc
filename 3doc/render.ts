@@ -155,6 +155,10 @@ export const Parameters = {
 		help: 'Enables debug mode to print detailed output during documentation generation.',
 		type: 'boolean',
 	},
+	spa: {
+		help: 'Experimental Single Page App mode',
+		type: 'boolean',
+	},
 } as const;
 
 const ENTITIES_REGEX = /[&<"]/g;
