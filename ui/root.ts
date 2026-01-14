@@ -6,7 +6,15 @@ import { Page } from './page.js';
 import type { SummaryJson } from './docgen.js';
 import type { Kind } from '../dts/enum.js';
 
-export { Body, Page as UiPage, Drawer, Icon, NavHeadline, Hr } from '@cxl/ui';
+export {
+	Body,
+	Page as UiPage,
+	Drawer,
+	Icon,
+	NavHeadline,
+	NavDropdown,
+	Hr,
+} from '@cxl/ui';
 
 declare global {
 	const CONFIG: {

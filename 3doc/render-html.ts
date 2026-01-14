@@ -170,7 +170,7 @@ export function renderType(type: Node): string {
 			return type.resolvedType
 				? `<doc-more><x slot="off"> keyof ${Type(type.type)}</x> ${Type(
 						type.resolvedType,
-				  )}</doc-more>`
+					)}</doc-more>`
 				: `keyof ${Type(type.type)}`;
 		case Kind.Typeof:
 			return `typeof ${type.name}`;
@@ -206,10 +206,10 @@ function Parameter(p: Node) {
 		p.flags & Flags.Public
 			? 'public '
 			: p.flags & Flags.Private
-			? 'private'
-			: p.flags & Flags.Protected
-			? 'protected '
-			: '';
+				? 'private'
+				: p.flags & Flags.Protected
+					? 'protected '
+					: '';
 
 	const name = `${modifiers}${p.flags & Flags.Rest ? '...' : ''}${p.name}${
 		p.flags & Flags.Optional ? '?' : ''
@@ -328,9 +328,9 @@ function Demo(doc: DocumentationContent): string {
 	const demo = application.cxlExtensions
 		? `<doc-demo${
 				application.debug ? ' debug' : ''
-		  }><!--${value}--><div slot="toolbar">${
+			}><!--${value}--><div slot="toolbar">${
 				title || translate('Example')
-		  }</div></doc-demo>`
+			}</div></doc-demo>`
 		: Markdown(value);
 
 	return demo;
@@ -358,8 +358,8 @@ function DocSee(docs: DocumentationContent[]) {
 			output = symbol
 				? Link(symbol)
 				: application.markdown
-				? Markdown(value, true)
-				: escape(value);
+					? Markdown(value, true)
+					: escape(value);
 		}
 		return output;
 	});
@@ -472,7 +472,7 @@ function ExtendedBy(extendedBy?: Node[]) {
 	return extendedBy
 		? `<div><c-t font="title-small">${translate(
 				'Extended By',
-		  )}:</c-t> ${extendedBy
+			)}:</c-t> ${extendedBy
 				.map(ref => (ref.name ? `${Link(ref)}` : ''))
 				.join(', ')}</div>`
 		: '';
@@ -488,8 +488,8 @@ function Link(node: Node, content?: string, parent?: Node): string {
 		(node.name
 			? escape(node.name)
 			: node.flags & Flags.Default
-			? '<i>default</i>'
-			: `(Unknown)`);
+				? '<i>default</i>'
+				: `(Unknown)`);
 
 	if (node.type && isReferenceNode(node)) node = node.type;
 
@@ -684,7 +684,7 @@ function getMemberGroups(node: Node, indexOnly = false, sort = true) {
 	return sort
 		? result.sort((a, b) =>
 				kindToString(a.kind) > kindToString(b.kind) ? 1 : -1,
-		  )
+			)
 		: result;
 }
 
@@ -739,7 +739,7 @@ function Members(node: Node) {
 	return groups.length || inherited
 		? `<doc-members>${
 				groups.map(MemberGroupIndex).join('') + inherited
-		  }</doc-members>${groups.map(MemberBodyGroup).join('')}`
+			}</doc-members>${groups.map(MemberBodyGroup).join('')}`
 		: '';
 }
 
@@ -840,7 +840,7 @@ function Item(title: string, href: string, icon?: string) {
 
 	const result = `<doc-item size="-1" href="${href}" ${
 		application.spa ? '' : 'external'
-	}>${icon ? `<c-icon icon="${icon}"></c-icon>` : ''}${title}</doc-item>`;
+	}>${icon ? `<c-icon name="${icon}"></c-icon>` : ''}${title}</doc-item>`;
 
 	return result;
 }
@@ -883,8 +883,13 @@ function findOtherVersions(outDir: string, currentVersion: string) {
 
 function Navbar(_pkg: Package) {
 	return `<nav slot="navbar">
-		${extraDocs.length ? NavbarExtra() : ''}	
+		${extraDocs.length ? NavbarExtra() : ''}
+		<c-nav-dropdown open size="-1" target="_next" iconalign="end">
+			<c-icon name="code"></c-icon>API Reference
+		</c-nav-dropdown>
+		<c-toggle-target>
 		${modules.sort(sortNode).map(ModuleNavbar).join('')}
+		</c-toggle-target>
 		</nav>`;
 }
 
@@ -1119,7 +1124,18 @@ export function render(app: DocGen, output: Output): File[] {
 	extraDocs =
 		app.extra ||
 		(existsSync(readmePath)
-			? [{ items: [{ title: 'Home', file: readmePath, index: true }] }]
+			? [
+					{
+						items: [
+							{
+								title: 'Home',
+								icon: 'home',
+								file: readmePath,
+								index: true,
+							},
+						],
+					},
+				]
 			: []);
 
 	modules = [];

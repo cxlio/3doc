@@ -26,11 +26,12 @@ component(DocApp, {
 	augment: [
 		css(`
 :host{display:contents}
-#body{overflow:hidden}
+#body{overflow:hidden; flex-grow: 1;}
 #page { padding: 16px; flex-grow: 1; ${font('body-large')}; overflow-y: auto; }
 #navbar[responsiveon] {
 	overflow:hidden; width:320px;
 	padding: 8px; box-sizing: border-box;
+	flex-grow: 1;
 }
 #version{margin-left:auto;}
 #navbar-container {

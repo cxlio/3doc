@@ -148,8 +148,8 @@ function Link(node: Node, content?: string, parent?: Node): string {
 		(node.name
 			? escape(node.name)
 			: node.flags & Flags.Default
-			? '<i>default</i>'
-			: '(Unknown)');
+				? '<i>default</i>'
+				: '(Unknown)');
 
 	if (node.type && isReferenceNode(node)) node = node.type;
 
@@ -223,7 +223,7 @@ function _renderType(type: Node): string {
 			return type.resolvedType
 				? `<doc-more><x slot="off"> keyof ${Type(type.type)}</x> ${Type(
 						type.resolvedType,
-				  )}</doc-more>`
+					)}</doc-more>`
 				: `keyof ${Type(type.type)}`;
 		case Kind.Typeof:
 			return `typeof ${type.name}`;
@@ -267,10 +267,10 @@ function Parameter(p: Node) {
 		p.flags & Flags.Public
 			? 'public '
 			: p.flags & Flags.Private
-			? 'private'
-			: p.flags & Flags.Protected
-			? 'protected '
-			: '';
+				? 'private'
+				: p.flags & Flags.Protected
+					? 'protected '
+					: '';
 
 	const name = `${modifiers}${p.flags & Flags.Rest ? '...' : ''}${p.name}${
 		p.flags & Flags.Optional ? '?' : ''
@@ -384,6 +384,10 @@ function renderType(node: Node): string | Summary {
 		};
 	}
 
+	/*	if (node.kind === Kind.TypeUnion) {
+		return node.children?.map(renderType)
+	}*/
+
 	if (node.kind === Kind.BaseType)
 		return `${node.name}${TypeArguments(typeParameters)}`;
 	if (
@@ -454,14 +458,18 @@ function renderTypeParam(node: Node): Summary {
 }
 
 function getResolvedType(node: Node, typeNode?: Node) {
-	const resolvedType = node.resolvedType
+	let resolvedType = node.resolvedType
 		? node.resolvedType.type?.type === node
 			? node.resolvedType.name
 			: renderType(node.resolvedType)
 		: undefined;
-	if (resolvedType) return resolvedType;
 
-	if (typeNode?.resolvedType) return renderType(typeNode.resolvedType);
+	if (!resolvedType && typeNode?.resolvedType)
+		resolvedType = renderType(typeNode.resolvedType);
+
+	if (resolvedType === 'any') return;
+
+	return resolvedType;
 }
 
 function renderNode(node: Node): Summary {

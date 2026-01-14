@@ -11,6 +11,7 @@ import {
 	tsx,
 	onLoad,
 	renderEach,
+	router,
 } from '@cxl/ui';
 
 import type { Symbol } from './root.js';
@@ -53,8 +54,13 @@ component(DocSearchInput, {
 				tsx(InputOption, {
 					$: el =>
 						get(el, 'selected').tap(sel => {
-							if (!CONFIG.spa && sel?.value)
-								location.href = sel.value as string;
+							const url = sel?.value as string;
+							if (!url) return;
+
+							if (CONFIG.spa) router.go(url);
+							else location.href = url;
+
+							el.value = '';
 						}),
 				}),
 				card,
