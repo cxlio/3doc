@@ -1,6 +1,6 @@
 {
 	"name": "@cxl/3doc",
-	"version": "1.0.0-beta.1",
+	"version": "1.0.0-beta.2",
 	"description": "TypeScript/JavaScript API documentation generator that builds versioned static HTML and JSON with Markdown/JSDoc support, and custom tags.",
 	"homepage": "https:/cxlio.github.io/docs/3doc",
 	"license": "SEE LICENSE IN LICENSE.md",
@@ -14,7 +14,8 @@
 		"./render-summary.js": "./render-summary.js"
 	},
 	"dependencies": {
-		"markdown-it": "^14.1.0"
+		"markdown-it": "^14.1.0",
+		"typescript": "^5.9.3"
 	},
 	"scripts": {
 		"build": "node build.ts",
