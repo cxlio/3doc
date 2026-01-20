@@ -132,7 +132,7 @@ export function docgenRender({
 				return signature(type);
 			case Kind.ClassType: {
 				const ref = getRef(nodeType);
-				return [ref ? link(ref) : type.name ?? '?'];
+				return [ref ? link(ref) : (type.name ?? '?')];
 			}
 			case Kind.IndexedType:
 				return [
@@ -154,10 +154,10 @@ export function docgenRender({
 			flags & Flags.Public
 				? 'public '
 				: flags & Flags.Private
-				? 'private'
-				: flags & Flags.Protected
-				? 'protected '
-				: '';
+					? 'private'
+					: flags & Flags.Protected
+						? 'protected '
+						: '';
 
 		const name = `${modifiers}${flags & Flags.Rest ? '...' : ''}${p.name}${
 			flags & Flags.Optional ? '?' : ''
@@ -179,8 +179,8 @@ export function docgenRender({
 			node.kind === Kind.Getter
 				? 'get '
 				: node.kind === Kind.Setter
-				? 'set '
-				: undefined;
+					? 'set '
+					: undefined;
 
 		return [
 			flags & Flags.Static ? 'static ' : '',
@@ -262,7 +262,7 @@ export function docgenRender({
 			title = val;
 			return '';
 		});
-		const css = `<style>body{display:flex;align-items:center;flex-wrap:wrap;justify-content:center;overflow-x:hidden;overflow-y:auto;padding:0 24px 24px 24px;gap:32px;min-height:96px;color:var(--cxl-color-on-background);
+		const css = `<style>html{display:flex;align-items:center;flex-wrap:wrap;justify-content:center;overflow-x:hidden;overflow-y:auto;padding:24px;gap:32px;min-height:96px;color:var(--cxl-color-on-background);
 background-color:var(--cxl-color-background)}</style>`;
 		const script =
 			(importmap ?? '') +

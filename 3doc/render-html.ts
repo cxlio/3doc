@@ -4,6 +4,7 @@ import {
 	Kind,
 	Flags,
 	Source,
+	printSignature,
 	DocumentationContent,
 	printNode as _printNode,
 } from '../dts/index.js';
@@ -224,7 +225,7 @@ function SignatureParameters(parameters?: Node[]) {
 }
 
 function Chip(label: string, color = 'primary') {
-	return `<c-chip size="-1" color="${color}">${label}</c-chip> `;
+	return `<c-pill size="-1" color="${color}">${label}</c-chip> `;
 }
 
 function NodeChips({ flags, docs }: Node) {
@@ -410,7 +411,7 @@ function Documentation(node: Node) {
 		if (typeof doc.value === 'string' && doc.tag === 'link')
 			return DocLink(doc.value);
 
-		const value = getDocValue(doc.value);
+		const value = getDocValue(doc.value).trim();
 		const text = application.markdown
 			? Markdown(value, !value.includes('\n'))
 			: formatContent(value);
@@ -436,8 +437,12 @@ function ParameterDocumentation(node: Node) {
 	return Documentation(node);
 }
 
+export function prettify(node: Node) {
+	return escape(printSignature(node));
+}
+
 function MemberBody(c: Node) {
-	let result = `<doc-hl language="typescript">${Signature(c)}</doc-hl>`;
+	let result = `<doc-hl language="typescript">${prettify(c)}</doc-hl>`;
 
 	if (c.docs) result += Documentation(c);
 
@@ -451,12 +456,10 @@ function MemberBody(c: Node) {
 					p =>
 						`<dt><code>${Parameter(
 							p,
-						)}</code></dt><dd>${ParameterDocumentation(
-							p,
-						)}</dd></dl>`,
+						)}</code></dt><dd>${ParameterDocumentation(p)}</dd>`,
 				)
 				.join('') +
-			'</ul>';
+			'</dl>';
 
 	return result;
 }
@@ -849,7 +852,7 @@ function Extra(docs: Section[]) {
 	return docs
 		.map(docs => {
 			const title = docs.title
-				? `<c-nav-headline>${docs.title}</c-nav-headline>`
+				? `<c-nav-dropdown target="_next" open>${docs.title}</c-nav-dropdown>`
 				: '';
 			const items = docs.items
 				.map(i =>
@@ -860,7 +863,9 @@ function Extra(docs: Section[]) {
 					),
 				)
 				.join('');
-			return `${title}${items}`;
+			return title
+				? `${title}<c-nav-target>${items}</c-nav-target>`
+				: items;
 		})
 		.join('');
 }
@@ -887,9 +892,9 @@ function Navbar(_pkg: Package) {
 		<c-nav-dropdown open size="-1" target="_next" iconalign="end">
 			<c-icon name="code"></c-icon>API Reference
 		</c-nav-dropdown>
-		<c-toggle-target>
+		<c-nav-target>
 		${modules.sort(sortNode).map(ModuleNavbar).join('')}
-		</c-toggle-target>
+		</c-nav-target>
 		</nav>`;
 }
 
@@ -925,11 +930,7 @@ function Header(config: string, scripts: File[]) {
 		: '';
 
 	return `<!DOCTYPE html>
-<head>${config}${customHeadHtml}<meta charset="utf-8"><meta name="description" content="Documentation for ${title}" />${SCRIPTS}<title>${title} API Reference</title><style>
-doc-ct { gap:8px;margin-bottom:24px;white-space:wrap;font:var(--cxl-font-code);font-size:18px;display:flex;align-items:center; }
-c-application { opacity: 0; }
-c-application[ready] { opacity: 1; }
-</style></head>
+<head>${config}${customHeadHtml}<meta charset="utf-8"><meta name="description" content="Documentation for ${title}" />${SCRIPTS}<title>${title} API Reference</title></head><style>doc-app{opacity:0}</style>
 <doc-app>${Navbar(pkg)}`;
 }
 
@@ -1154,13 +1155,6 @@ export function render(app: DocGen, output: Output): File[] {
 		{
 			name: '3doc.js',
 			content: readFileSync(RUNTIME_JS, 'utf8'),
-		},
-		{
-			name: 'hljs.css',
-			content: readFileSync(
-				join(import.meta.dirname, 'hljs.css'),
-				'utf8',
-			),
 		},
 	];
 	const files: File[] = [...extraFiles, ...output.modules.flatMap(Module)];

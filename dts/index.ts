@@ -124,6 +124,7 @@ export interface Documentation {
 export interface Source {
 	name: string;
 	index: number;
+	node: ts.Node;
 	sourceFile?: ts.SourceFile;
 	tsconfig?: string;
 }
@@ -171,7 +172,11 @@ export const NumberType = createBaseType('number'),
 
 const dtsNode = Symbol('dtsNode');
 
-const printer = tsLocal.createPrinter();
+const printer = tsLocal.createPrinter({
+	removeComments: true,
+	newLine: tsLocal.NewLineKind.LineFeed,
+	omitTrailingSemicolon: true,
+});
 
 let currentIndex: Index;
 let program: ts.Program;
@@ -179,11 +184,11 @@ let config: ts.ParsedCommandLine | undefined;
 let sourceFiles: readonly ts.SourceFile[];
 let typeChecker: ts.TypeChecker;
 let currentId = 1;
-let extraModules: Node[];
-let exportIndex: Record<string, Node>;
-let currentOptions: BuildOptions;
-let moduleMap: Record<string, Node>;
-let builtReferences: string[];
+let extraModules: Node[] | undefined;
+let exportIndex: Record<string, Node> | undefined;
+let currentOptions: BuildOptions | undefined;
+let moduleMap: Record<string, Node> | undefined;
+let builtReferences: string[] | undefined;
 
 const parseConfigHost: ts.FormatDiagnosticsHost & ts.ParseConfigFileHost = {
 	useCaseSensitiveFileNames: true,
@@ -251,9 +256,7 @@ function _printNode(node: Node, visited: Node[] = []): PrintableNode {
 		return { name: `circular: ${name}`, flags: flagText, kind: Kind[kind] };
 	visited.push(node);
 
-	const sources = Array.isArray(source)
-		? source.map(s => s.name)
-		: source?.name || '?';
+	const sources = source?.name || '?';
 
 	return {
 		id,
@@ -273,6 +276,176 @@ function _printNode(node: Node, visited: Node[] = []): PrintableNode {
 
 export function printNode(node: Node) {
 	console.log(JSON.stringify(_printNode(node), null, 2));
+}
+function getTypeNode(node: ts.Node) {
+	const type = typeChecker.getTypeAtLocation(node);
+	return typeChecker.typeToTypeNode(
+		type,
+		node,
+		tsLocal.NodeBuilderFlags.NoTruncation |
+			tsLocal.NodeBuilderFlags.IgnoreErrors,
+	);
+}
+function getReturnTypeNode(fn: ts.FunctionLikeDeclaration) {
+	const signature = typeChecker.getSignatureFromDeclaration(fn);
+	if (!signature) {
+		return tsLocal.factory.createKeywordTypeNode(SK.AnyKeyword);
+	}
+
+	const returnType = typeChecker.getReturnTypeOfSignature(signature);
+
+	return typeChecker.typeToTypeNode(
+		returnType,
+		fn,
+		tsLocal.NodeBuilderFlags.NoTruncation |
+			tsLocal.NodeBuilderFlags.WriteTypeArgumentsOfSignature |
+			tsLocal.NodeBuilderFlags.IgnoreErrors,
+	);
+}
+
+export function printSignature(fn: Node) {
+	let tsNode = fn.source?.node;
+	const sf = fn.source?.sourceFile;
+
+	if (!tsNode || !sf) return '';
+
+	if (tsLocal.isFunctionDeclaration(tsNode)) {
+		/*const sig = typeChecker.getSignatureFromDeclaration(tsNode);
+		if (sig)
+			return typeChecker.signatureToString(
+				sig,
+				tsNode,
+				tsLocal.TypeFormatFlags.NoTruncation |
+					tsLocal.TypeFormatFlags.MultilineObjectLiterals |
+					tsLocal.TypeFormatFlags.UseStructuralFallback |
+					tsLocal.TypeFormatFlags.IgnoreErrors,
+			);*/
+		tsNode = tsLocal.factory.updateFunctionDeclaration(
+			tsNode,
+			tsNode.modifiers,
+			tsNode.asteriskToken,
+			tsNode.name,
+			tsNode.typeParameters,
+			tsNode.parameters,
+			tsNode.type ?? getReturnTypeNode(tsNode),
+			undefined,
+		);
+	} else if (tsLocal.isConstructorDeclaration(tsNode))
+		tsNode = tsLocal.factory.updateConstructorDeclaration(
+			tsNode,
+			tsNode.modifiers,
+			tsNode.parameters,
+			undefined,
+		);
+	else if (tsLocal.isMethodDeclaration(tsNode))
+		tsNode = tsLocal.factory.updateMethodDeclaration(
+			tsNode,
+			tsNode.modifiers,
+			tsNode.asteriskToken,
+			tsNode.name,
+			tsNode.questionToken,
+			tsNode.typeParameters,
+			tsNode.parameters,
+			tsNode.type ?? getReturnTypeNode(tsNode),
+			undefined,
+		);
+	/*else if (tsLocal.isMethodSignature(tsNode))
+		tsNode = tsLocal.factory.updateMethodSignature(
+			tsNode,
+			tsNode.modifiers,
+			tsNode.name,
+			tsNode.questionToken,
+			tsNode.typeParameters,
+			tsNode.parameters,
+			tsNode.type,
+		);
+	else if (tsLocal.isCallSignatureDeclaration(tsNode))
+		tsNode = tsLocal.factory.updateCallSignature(
+			tsNode,
+			tsNode.typeParameters,
+			tsNode.parameters,
+			tsNode.type,
+		);
+	else if (tsLocal.isConstructSignatureDeclaration(tsNode))
+		tsNode = tsLocal.factory.updateConstructSignature(
+			tsNode,
+			tsNode.typeParameters,
+			tsNode.parameters,
+			tsNode.type,
+		);*/ else if (tsLocal.isGetAccessorDeclaration(tsNode))
+		tsNode = tsLocal.factory.updateGetAccessorDeclaration(
+			tsNode,
+			tsNode.modifiers,
+			tsNode.name,
+			tsNode.parameters,
+			tsNode.type ?? getReturnTypeNode(tsNode),
+			undefined,
+		);
+	else if (tsLocal.isSetAccessorDeclaration(tsNode))
+		tsNode = tsLocal.factory.updateSetAccessorDeclaration(
+			tsNode,
+			tsNode.modifiers,
+			tsNode.name,
+			tsNode.parameters,
+			undefined,
+		);
+	/*else if (tsLocal.isFunctionExpression(tsNode))
+		tsNode = tsLocal.factory.updateFunctionExpression(
+			tsNode,
+			tsNode.modifiers,
+			tsNode.asteriskToken,
+			tsNode.name,
+			tsNode.typeParameters,
+			tsNode.parameters,
+			tsNode.type,
+			undefined,
+		);*/ else if (tsLocal.isArrowFunction(tsNode))
+		tsNode = tsLocal.factory.updateArrowFunction(
+			tsNode,
+			tsNode.modifiers,
+			tsNode.typeParameters,
+			tsNode.parameters,
+			tsNode.type ?? getReturnTypeNode(tsNode),
+			tsNode.equalsGreaterThanToken,
+			tsLocal.factory.createBlock([], true),
+		);
+	else if (tsLocal.isPropertyDeclaration(tsNode))
+		tsNode = tsLocal.factory.updatePropertyDeclaration(
+			tsNode,
+			tsNode.modifiers,
+			tsNode.name,
+			tsNode.questionToken ?? tsNode.exclamationToken,
+			tsNode.type ?? getTypeNode(tsNode),
+			undefined, // remove initializer
+		);
+	else if (tsLocal.isPropertySignature(tsNode))
+		tsNode = tsLocal.factory.updatePropertySignature(
+			tsNode,
+			tsNode.modifiers,
+			tsNode.name,
+			tsNode.questionToken,
+			tsNode.type ?? getTypeNode(tsNode),
+		);
+	else if (tsLocal.isVariableDeclaration(tsNode))
+		tsNode = tsLocal.factory.updateVariableDeclaration(
+			tsNode,
+			tsNode.name,
+			tsNode.exclamationToken,
+			tsNode.type ?? getTypeNode(tsNode),
+			undefined, // remove initializer
+		);
+
+	return printer.printNode(tsLocal.EmitHint.Unspecified, tsNode, sf);
+}
+
+export function print(node: Node) {
+	return node.source?.sourceFile
+		? printer.printNode(
+				tsLocal.EmitHint.Unspecified,
+				node.source.node,
+				node.source.sourceFile,
+			)
+		: '';
 }
 
 export function printTsNode(node: ts.Node) {
@@ -331,8 +504,9 @@ function getKind(node: ts.Node): Kind {
 		case SK.PropertyAssignment:
 		case SK.EnumMember:
 			return Kind.Property;
+		default:
+			return SyntaxKindMap[node.kind] || Kind.Unknown;
 	}
-	return SyntaxKindMap[node.kind] || Kind.Unknown;
 }
 
 function createNodeId(_tsNode: ts.Node, _node?: Node) {
@@ -340,16 +514,17 @@ function createNodeId(_tsNode: ts.Node, _node?: Node) {
 }
 
 function getNodeSource(node: ts.Node): Source | undefined {
-	const root = currentOptions.packageRoot || process.cwd();
-	const sourceFile = node.getSourceFile();
+	const root = currentOptions?.packageRoot || process.cwd();
+	const sourceFile = node.getSourceFile() as ts.SourceFile | null;
 	const result = sourceFile
 		? {
 				name: relative(root, sourceFile.fileName),
 				index: node.pos,
+				node,
 				tsconfig: (
 					program.getCompilerOptions() as { configFilePath: string }
 				).configFilePath,
-		  }
+			}
 		: undefined;
 	if (result)
 		Object.defineProperty(result, 'sourceFile', {
@@ -363,12 +538,12 @@ function getNodeName(node: ts.Node): string {
 	if (tsLocal.isSourceFile(node)) {
 		return normalizeSourceFileName(node.fileName);
 	}
-	if ((node as ts.TypeParameterDeclaration).name)
+	if ((node as ts.TypeParameterDeclaration | null)?.name)
 		node = (node as ts.TypeParameterDeclaration).name;
-	else if ((node as ts.TypeReferenceNode).typeName)
+	else if ((node as ts.TypeReferenceNode | null)?.typeName)
 		node = (node as ts.TypeReferenceNode).typeName;
 
-	if ((node as ts.Identifier).escapedText !== undefined)
+	if ((node as ts.Identifier | null)?.escapedText !== undefined)
 		return (node as ts.Identifier).escapedText as string;
 
 	if (node.pos !== -1 && tsLocal.isStringLiteral(node)) return node.getText();
@@ -419,11 +594,10 @@ function getNodeFromDeclaration(symbol: ts.Symbol, node: ts.Node): Node {
 		if (
 			!program.isSourceFileDefaultLibrary(sourceFile) &&
 			!program.isSourceFileFromExternalLibrary(sourceFile) &&
-			sourceFile.isDeclarationFile &&
-			symbol
+			sourceFile.isDeclarationFile
 		) {
 			const fqn = getSymbolFullyQualifiedName(symbol);
-			const externalNode = exportIndex[fqn];
+			const externalNode = exportIndex?.[fqn];
 			if (externalNode?.source) return externalNode;
 		}
 
@@ -462,7 +636,7 @@ function serializeExpression(node: ts.Expression) {
 }
 
 function hasInternalAnnotation(node: ts.Node, text: string) {
-	let parent = node;
+	let parent: ts.Node | undefined = node;
 	if (node.kind === SK.ModuleDeclaration) return false;
 	do {
 		if (parent.$$internal) return true;
@@ -476,14 +650,15 @@ function hasInternalAnnotation(node: ts.Node, text: string) {
 					return (parent.$$internal = true);
 				}
 			}
-	} while ((parent = parent.parent));
+	} while ((parent = parent.parent as ts.Node | undefined));
 
 	return (node.$$internal = false);
 }
 
 function getDeclarationFlags(node: ts.Declaration, flags: ts.ModifierFlags) {
 	const tsFlags = tsLocal.ModifierFlags;
-	const isDecl = node.getSourceFile()?.isDeclarationFile;
+	const sourceFile = node.getSourceFile() as ts.SourceFile | null;
+	const isDecl = sourceFile?.isDeclarationFile;
 	let result = 0;
 
 	if (flags & tsFlags.Export || isDecl || node.kind === SK.NamespaceExport)
@@ -514,7 +689,9 @@ function getFlags(node: ts.Node) {
 	if ((node as ts.PropertyDeclaration).questionToken)
 		result |= Flags.Optional;
 
-	const sourceFile = tsLocal.isSourceFile(node) ? node : node.getSourceFile();
+	const sourceFile = (
+		tsLocal.isSourceFile(node) ? node : node.getSourceFile()
+	) as ts.SourceFile | null;
 
 	if (sourceFile) {
 		if (hasInternalAnnotation(node, sourceFile.getFullText()))
@@ -540,7 +717,8 @@ function getResolvedType(type: ts.Type) {
 				undefined,
 				tsLocal.NodeBuilderFlags.NoTypeReduction |
 					tsLocal.NodeBuilderFlags.InTypeAlias |
-					tsLocal.NodeBuilderFlags.NoTruncation,
+					tsLocal.NodeBuilderFlags.NoTruncation |
+					tsLocal.NodeBuilderFlags.IgnoreErrors,
 			);
 			if (resolved) resolved.$$resolvedType = true;
 			return resolved ? serialize(resolved) : undefined;
@@ -555,7 +733,7 @@ function getResolvedType(type: ts.Type) {
 
 const comments = /<!--(.*?)-->/g;
 function processJsDoc(content: string) {
-	return content.replace(comments, '');
+	return content.trim().replace(comments, '');
 }
 
 function parseJsDocComment(comment: ts.JSDoc['comment']) {
@@ -566,8 +744,8 @@ function parseJsDocComment(comment: ts.JSDoc['comment']) {
 		n.kind === SK.JSDocLink
 			? {
 					tag: 'link',
-					value: `${n.name?.getText() || ''}${n.text}`,
-			  }
+					value: `${n.name?.getText() || ''}${n.text.trim()}`,
+				}
 			: { value: processJsDoc(n.text) },
 	);
 }
@@ -592,7 +770,7 @@ function mergeJsDocComment(content: DocumentationContent[], doc: ts.JSDocTag) {
 }
 
 function getNodeDocs(node: ts.Node, result: Node) {
-	const jsDoc = node.jsDoc as ts.JSDoc[];
+	const jsDoc = node.jsDoc;
 	const content: DocumentationContent[] = [];
 	const docs: Documentation = { content };
 
@@ -609,7 +787,7 @@ function getNodeDocs(node: ts.Node, result: Node) {
 		const name = (doc as ts.JSDocSeeTag).name?.getText();
 		let value = doc.comment ? parseJsDocComment(doc.comment) : name;
 
-		if (currentOptions.cxlExtensions && tag === 'tagName') {
+		if (currentOptions?.cxlExtensions && tag === 'tagName') {
 			docs.tagName = String(value);
 			return;
 		}
@@ -630,7 +808,7 @@ function getNodeDocs(node: ts.Node, result: Node) {
 		if (tag === 'see' && doc.comment === '*') value = name;
 		if (tag === 'beta') docs.beta = true;
 		if (tag === 'alpha') docs.alpha = true;
-		if (currentOptions.cxlExtensions) {
+		if (currentOptions?.cxlExtensions) {
 			if (tag === 'attribute') result.kind = Kind.Attribute;
 			else if (tag === 'event') result.kind = Kind.Event;
 		}
@@ -662,7 +840,7 @@ function serializeDeclaration(node: ts.Declaration): Node {
 
 	if (tsLocal.isEnumMember(node))
 		result.value = JSON.stringify(typeChecker.getConstantValue(node));
-	else if ((node as ts.PropertyAssignment).initializer)
+	else if ((node as ts.PropertyAssignment | null)?.initializer)
 		result.value = serializeExpression(
 			(node as ts.PropertyAssignment).initializer,
 		);
@@ -674,8 +852,7 @@ function serializeDeclaration(node: ts.Declaration): Node {
 
 function serializeTypeParameter(node: ts.TypeParameterDeclaration) {
 	const result = serializeDeclaration(node);
-	if (node.default && node.getSourceFile())
-		result.value = node.default.getText();
+	if (node.default) result.value = node.default.getText();
 	if (node.constraint) result.children = [serialize(node.constraint)];
 	return result;
 }
@@ -690,7 +867,7 @@ function serializeUnknownSymbol(symbol: ts.Symbol): Node {
 }
 
 function serializeParameter(symbol: ts.Symbol) {
-	const node = symbol.valueDeclaration as ts.ParameterDeclaration;
+	const node = symbol.valueDeclaration as ts.ParameterDeclaration | undefined;
 
 	if (!node) return serializeUnknownSymbol(symbol);
 
@@ -722,10 +899,9 @@ function getSymbolReference(
 			name,
 			flags: 0,
 			kind: Kind.Reference,
-			typeParameters:
-				typeArgs && typeArgs.length
-					? typeArgs.map(serializeType)
-					: undefined,
+			typeParameters: typeArgs?.length
+				? typeArgs.map(serializeType)
+				: undefined,
 		};
 	}
 
@@ -734,10 +910,9 @@ function getSymbolReference(
 		flags: 0,
 		kind: Kind.Reference,
 		type: getNodeFromDeclaration(symbol, node),
-		typeParameters:
-			typeArgs && typeArgs.length
-				? typeArgs.map(serializeType)
-				: undefined,
+		typeParameters: typeArgs?.length
+			? typeArgs.map(serializeType)
+			: undefined,
 	};
 }
 
@@ -776,7 +951,7 @@ function serializeSymbol(symbol: ts.Symbol): Node {
 				name: symbol.name,
 				kind: Kind.Unknown,
 				flags: 0,
-		  };
+			};
 	if (node.kind !== Kind.Namespace) node.name = symbol.name;
 	return node;
 }
@@ -805,7 +980,8 @@ function serializeTypeObject(type: ts.ObjectType): Node {
 		type,
 		undefined,
 		tsLocal.NodeBuilderFlags.InObjectTypeLiteral |
-			tsLocal.NodeBuilderFlags.NoTruncation,
+			tsLocal.NodeBuilderFlags.NoTruncation |
+			tsLocal.NodeBuilderFlags.IgnoreErrors,
 	);
 	if (!result) {
 		return {
@@ -844,13 +1020,15 @@ function serializeType(type: ts.Type): Node {
 
 	if (isArrayType(type)) return serializeTypeObject(type as ts.ObjectType);
 
-	if (type.symbol?.flags & tsLocal.SymbolFlags.Namespace) {
+	const typeSymbol = type.symbol as ts.Symbol | null;
+
+	if (typeSymbol && typeSymbol.flags & tsLocal.SymbolFlags.Namespace) {
 		const result = getSymbolReference(type.symbol);
 		result.kind = Kind.ImportType;
 		return result;
 	}
 
-	if (isReferenceType(type) && type.symbol)
+	if (typeSymbol && isReferenceType(type))
 		return getSymbolReference(
 			type.symbol,
 			typeChecker.getTypeArguments(type as ts.TypeReference),
@@ -879,7 +1057,7 @@ function serializeType(type: ts.Type): Node {
 	if (type.flags & TF.Object)
 		return serializeTypeObject(type as ts.ObjectType);
 
-	if (type.symbol) return serializeSymbol(type.symbol);
+	if ('symbol' in type) return serializeSymbol(type.symbol);
 
 	return {
 		name: typeChecker.typeToString(type),
@@ -914,14 +1092,14 @@ function serializeFunction(
 	);
 
 	if (
-		allSignatures?.length > 1 &&
+		allSignatures.length > 1 &&
 		!typeChecker.isImplementationOfOverload(node)
 	)
 		result.flags = result.flags | Flags.Overload;
 
 	if (signature && !result.type) {
 		const type = signature.getReturnType();
-		result.type = type && serializeType(type);
+		result.type = serializeType(type);
 	}
 
 	return result;
@@ -937,16 +1115,11 @@ function serializeArray(node: ts.ArrayTypeNode) {
 function getCxlDecorator(node: ts.Declaration, name: string) {
 	if (!tsLocal.canHaveDecorators(node)) return undefined;
 	const decorators = tsLocal.getDecorators(node);
-	return (
-		decorators &&
-		decorators.find(
-			deco =>
-				tsLocal.isCallExpression(deco.expression) &&
-				tsLocal.isIdentifier(deco.expression.expression) &&
-				(deco.expression.expression.escapedText as string).endsWith(
-					name,
-				),
-		)
+	return decorators?.find(
+		deco =>
+			tsLocal.isCallExpression(deco.expression) &&
+			tsLocal.isIdentifier(deco.expression.expression) &&
+			(deco.expression.expression.escapedText as string).endsWith(name),
 	);
 }
 
@@ -966,7 +1139,7 @@ function getCxlRole(node: ts.CallExpression): string {
 }
 
 function findBaseComponent(node: ts.ClassDeclaration) {
-	let type: ts.Type | undefined = typeChecker.getTypeAtLocation(node);
+	let type = typeChecker.getTypeAtLocation(node) as ts.Type | undefined;
 
 	while (type) {
 		const decl: ts.Declaration | undefined = type.symbol.valueDeclaration;
@@ -975,13 +1148,13 @@ function findBaseComponent(node: ts.ClassDeclaration) {
 		const extend: ts.LeftHandSideExpression | undefined =
 			decl.heritageClauses?.find(
 				n => n.token === tsLocal.SyntaxKind.ExtendsKeyword,
-			)?.types?.[0]?.expression;
+			)?.types[0]?.expression;
 
 		const newType: ts.Type | undefined =
 			extend && typeChecker.getTypeAtLocation(extend);
 		if (!newType || type === newType) break;
 
-		const name = newType.symbol?.name;
+		const name = newType.symbol.name;
 		if (name === 'Component') return true;
 
 		type = newType;
@@ -994,7 +1167,7 @@ function getCxlClassMeta(
 	result: Node,
 ): boolean {
 	const augment = getCxlDecorator(node, 'Augment');
-	const args = (augment?.expression as ts.CallExpression)?.arguments;
+	const args = (augment?.expression as ts.CallExpression | null)?.arguments;
 	const docs: Documentation = result.docs || {};
 	if (augment || (symbol && findBaseComponent(node)))
 		result.kind = Kind.Component;
@@ -1007,7 +1180,7 @@ function getCxlClassMeta(
 				m.kind === Kind.Property &&
 				m.flags & Flags.Static,
 		);
-		if (tagNode && tagNode.value) docs.tagName = tagNode.value.slice(1, -1);
+		if (tagNode?.value) docs.tagName = tagNode.value.slice(1, -1);
 	}
 
 	if (args) {
@@ -1039,7 +1212,7 @@ function serializeDeclarationWithType(node: ts.Declaration): Node {
 		result.children = node.name.elements.map(serialize);
 	}
 
-	if (currentOptions.cxlExtensions) isCxlAttribute(node, result);
+	if (currentOptions?.cxlExtensions) isCxlAttribute(node, result);
 
 	if (!result.type) {
 		const nodeType = (node as ts.VariableDeclaration).type;
@@ -1053,7 +1226,7 @@ function serializeDeclarationWithType(node: ts.Declaration): Node {
 		} else {
 			try {
 				const type = typeChecker.getTypeAtLocation(node);
-				if (type) result.type = serializeType(type);
+				result.type = serializeType(type);
 			} catch (e) {
 				console.error(e);
 			}
@@ -1098,7 +1271,7 @@ function serializeObject(
 function findSymbolOriginalFileNode(symbol: ts.Symbol) {
 	const decl = getSymbolDeclaration(symbol);
 	const sf = decl && getDeclarationOriginalFile(decl);
-	return sf ? moduleMap[sf] : undefined;
+	return sf ? moduleMap?.[sf] : undefined;
 }
 
 function getSymbolFullyQualifiedName(symbol: ts.Symbol) {
@@ -1106,7 +1279,7 @@ function getSymbolFullyQualifiedName(symbol: ts.Symbol) {
 
 	const decl = symbol.getDeclarations()?.[0];
 	const sourceFile = decl?.getSourceFile();
-	const path = (sourceFile as unknown as { path: string })?.path;
+	const path = (sourceFile as unknown as { path: string } | undefined)?.path;
 	if (path) return (symbol.$$fqn = `${path}.${symbol.getName()}`);
 
 	return (symbol.$$fqn = typeChecker.getFullyQualifiedName(symbol));
@@ -1115,7 +1288,7 @@ function getSymbolFullyQualifiedName(symbol: ts.Symbol) {
 function findExport(symbol?: ts.Symbol) {
 	if (!symbol) return;
 
-	if (currentOptions.followReferences) {
+	if (currentOptions?.followReferences) {
 		const sourceFile = findSymbolOriginalFileNode(symbol);
 		if (sourceFile) {
 			const existing = sourceFile.children?.find(
@@ -1125,7 +1298,7 @@ function findExport(symbol?: ts.Symbol) {
 		}
 	}
 
-	const existing = symbol && exportIndex[getSymbolFullyQualifiedName(symbol)];
+	const existing = exportIndex?.[getSymbolFullyQualifiedName(symbol)];
 	return existing?.source ? existing : undefined;
 }
 
@@ -1161,15 +1334,12 @@ function serializeClass(node: ts.ClassDeclaration | ts.InterfaceDeclaration) {
 		)
 			result.flags |= Flags.Export;
 
-		if (symbol) symbol[dtsNode] ??= result;
+		symbol[dtsNode] ??= result;
 	}
 
 	result ??= serializeDeclaration(node);
 
-	if (
-		node.members &&
-		(!result.children || node.kind === SK.InterfaceDeclaration)
-	)
+	if (!result.children || node.kind === SK.InterfaceDeclaration)
 		pushChildren(result, node.members.map(serialize));
 
 	// Add constructor defined properties to container class
@@ -1189,15 +1359,14 @@ function serializeClass(node: ts.ClassDeclaration | ts.InterfaceDeclaration) {
 			result.flags |= Flags.DeclarationMerge;
 			if (result.children && decl) {
 				const existingClass = getNodeFromDeclaration(symbol, decl);
-				if (existingClass)
-					pushChildren(
-						existingClass,
-						result.children.map(s => ({ ...s })),
-					);
+				pushChildren(
+					existingClass,
+					result.children.map(s => ({ ...s })),
+				);
 			}
 		}
 	}
-	if (tsLocal.isClassDeclaration(node) && currentOptions.cxlExtensions)
+	if (tsLocal.isClassDeclaration(node) && currentOptions?.cxlExtensions)
 		getCxlClassMeta(node, symbol, result);
 
 	if (node.heritageClauses?.length) {
@@ -1243,12 +1412,15 @@ function getTypeDeclaration(type: ts.Type, symbol: ts.Symbol) {
 function serializeReference(node: ts.TypeReferenceType) {
 	const typeObj = typeChecker.getTypeFromTypeNode(node);
 
-	let symbol: ts.Symbol | undefined = typeObj.aliasSymbol || typeObj.symbol;
+	let symbol =
+		typeObj.aliasSymbol || (typeObj.symbol as ts.Symbol | undefined);
 	if (!symbol && tsLocal.isTypeReferenceNode(node))
 		symbol = typeChecker.getSymbolAtLocation(node.typeName);
 
 	if (symbol && symbol.flags & tsLocal.SymbolFlags.Alias)
-		symbol = typeChecker.getAliasedSymbol(symbol) ?? symbol;
+		symbol =
+			(typeChecker.getAliasedSymbol(symbol) as ts.Symbol | null) ??
+			symbol;
 
 	const decl = symbol && getTypeDeclaration(typeObj, symbol);
 
@@ -1256,8 +1428,8 @@ function serializeReference(node: ts.TypeReferenceType) {
 		decl && symbol
 			? getNodeFromDeclaration(symbol, decl)
 			: node.flags & tsLocal.NodeFlags.Synthesized
-			? undefined
-			: serializeType(typeObj);
+				? undefined
+				: serializeType(typeObj);
 	const name = getNodeName(
 		tsLocal.isTypeReferenceNode(node) ? node.typeName : node.expression,
 	);
@@ -1303,7 +1475,7 @@ function serializeIndexSignature(node: ts.IndexSignatureDeclaration) {
 		id: createNodeId(node),
 		name: '__index',
 		parameters: node.parameters.map(serialize),
-		type: node.type && serialize(node.type),
+		type: serialize(node.type),
 	});
 }
 
@@ -1318,8 +1490,8 @@ function serializeTypeOperator(node: ts.TypeOperatorNode) {
 			? undefined
 			: typeChecker.getTypeFromTypeNode(node);
 	if (type) {
-		const resolvedType = type && serializeType(type);
-		if (resolvedType && resolvedType.kind !== result.kind)
+		const resolvedType = serializeType(type);
+		if (resolvedType.kind !== result.kind)
 			result.resolvedType = resolvedType;
 	}
 	return result;
@@ -1345,11 +1517,11 @@ function serializeRestType(node: ts.RestTypeNode) {
 
 function serializeMappedType(node: ts.MappedTypeNode) {
 	const result = createNode(node);
-	if (node.typeParameter) {
+	if ('typeParameter' in node) {
 		const type = serialize(node.typeParameter);
 		result.children = [type];
 		if (type.children?.[0]) {
-			result.children.push(type.children?.[0]);
+			result.children.push(type.children[0]);
 			type.children = undefined;
 		}
 	}
@@ -1370,7 +1542,7 @@ function serializeExportSpecifier(node: ts.ExportSpecifier) {
 }
 
 function normalizeSourceFileName(name: string) {
-	const root = currentOptions.rootDir ?? config?.options.rootDir ?? '';
+	const root = currentOptions?.rootDir ?? config?.options.rootDir ?? '';
 	return relative(root, name);
 }
 
@@ -1398,10 +1570,10 @@ function findModuleResultNode(
 	const moduleName = symbol ? normalizeModuleName(symbol) : undefined;
 	if (symbol) {
 		if (symbol.$$moduleResult) return symbol.$$moduleResult;
-		if (moduleName && currentOptions.followReferences) {
+		if (moduleName && currentOptions?.followReferences) {
 			const existing =
 				parseModule(symbol, node.getSourceFile()) ||
-				moduleMap[moduleName];
+				moduleMap?.[moduleName];
 			if (existing) return (symbol.$$moduleResult = existing);
 		}
 	}
@@ -1409,11 +1581,11 @@ function findModuleResultNode(
 	const result = serializeDeclaration(node);
 	if (symbol) symbol.$$moduleResult = result;
 	if (moduleName) {
-		if (currentOptions.forceExports?.includes(moduleName))
+		if (currentOptions?.forceExports?.includes(moduleName))
 			result.flags |= Flags.Export;
 
 		result.name = moduleName;
-		moduleMap[moduleName] = result;
+		if (moduleMap) moduleMap[moduleName] = result;
 	}
 	return result;
 }
@@ -1421,9 +1593,9 @@ function findModuleResultNode(
 function shouldPublishNamespace(symbol: ts.Symbol | undefined, result: Node) {
 	if (!symbol) return false;
 
-	if (extraModules.includes(result)) return false;
+	if (extraModules?.includes(result)) return false;
 
-	if (currentOptions.exportsOnly) {
+	if (currentOptions?.exportsOnly) {
 		// Publish namespace only if all parents are exported
 		let parent: ts.Symbol | undefined = symbol;
 		do {
@@ -1440,7 +1612,7 @@ function shouldPublishNamespace(symbol: ts.Symbol | undefined, result: Node) {
 function serializeModule(node: ts.ModuleDeclaration) {
 	const symbol =
 		typeChecker.getSymbolAtLocation(node) ||
-		(node.name && typeChecker.getSymbolAtLocation(node.name));
+		typeChecker.getSymbolAtLocation(node.name);
 
 	const result = findModuleResultNode(node, symbol);
 	node.body?.forEachChild(c => visit(c, result));
@@ -1448,7 +1620,7 @@ function serializeModule(node: ts.ModuleDeclaration) {
 	if (symbol && result.flags & Flags.Export) collectExports(symbol);
 
 	if (shouldPublishNamespace(symbol, result)) {
-		extraModules.push(result);
+		extraModules?.push(result);
 	}
 
 	return result;
@@ -1571,6 +1743,12 @@ function setup(
 		host,
 	});
 	typeChecker = program.getTypeChecker();
+	const diagnostics = tsLocal.getPreEmitDiagnostics(program);
+	if (diagnostics.length) {
+		console.warn(
+			tsLocal.formatDiagnosticsWithColorAndContext(diagnostics, host),
+		);
+	}
 }
 
 /**
@@ -1590,8 +1768,8 @@ function getDeclarationOriginalFile(decl: ts.Declaration) {
 function findSourceFileReference(path: string) {
 	const references = program.getResolvedProjectReferences();
 	if (references)
-		return references.find(
-			ref => ref?.commandLine.fileNames.includes(path),
+		return references.find(ref =>
+			ref?.commandLine.fileNames.includes(path),
 		);
 }
 
@@ -1600,14 +1778,14 @@ function parseModule(symbol: ts.Symbol, from: ts.SourceFile) {
 
 	if (sf && tsLocal.isSourceFile(sf) && !sourceFiles.includes(sf)) {
 		if (sf.isDeclarationFile) {
-			if (currentOptions.followReferences) {
+			if (currentOptions?.followReferences) {
 				const originalPath = getDeclarationOriginalFile(sf);
 				const project =
 					originalPath && findSourceFileReference(originalPath);
 				if (project) {
 					buildReference(project.commandLine);
 					const moduleName = normalizeSourceFileName(originalPath);
-					return extraModules.find(m => m.name === moduleName);
+					return extraModules?.find(m => m.name === moduleName);
 				}
 			}
 			if (from.isDeclarationFile) return parseSourceFile(sf);
@@ -1618,7 +1796,7 @@ function parseModule(symbol: ts.Symbol, from: ts.SourceFile) {
 function visit(n: ts.Node, parent: Node) {
 	function push(node: ts.Node) {
 		const child = serialize(node);
-		if (!currentOptions.exportsOnly || child.flags & Flags.Export)
+		if (!currentOptions?.exportsOnly || child.flags & Flags.Export)
 			pushChildren(parent, [child]);
 	}
 	if (tsLocal.isVariableStatement(n)) {
@@ -1645,27 +1823,32 @@ function visit(n: ts.Node, parent: Node) {
 				break;
 			case SK.ModuleDeclaration:
 				serializeModule(n as ts.ModuleDeclaration);
+				break;
+			default:
+				break;
 		}
 }
 
 function collectExports(symbol: ts.Symbol) {
 	symbol.exports?.forEach(s => {
 		const node = getSymbolDeclaration(s);
+		const localNode = node?.[dtsNode];
 		if (
-			node?.[dtsNode]?.source &&
-			!(node[dtsNode].flags & Flags.Internal)
+			localNode?.source &&
+			!(localNode.flags & Flags.Internal) &&
+			exportIndex
 		) {
-			exportIndex[getSymbolFullyQualifiedName(s)] = node[dtsNode];
+			exportIndex[getSymbolFullyQualifiedName(s)] = localNode;
 		}
 	});
 }
 
 function parseSourceFile(sourceFile: ts.SourceFile): Node {
-	const existing = moduleMap[sourceFile.fileName];
+	const existing = moduleMap?.[sourceFile.fileName];
 	if (existing) return existing;
 	const result = createNode(sourceFile);
 
-	moduleMap[sourceFile.fileName] = result;
+	if (moduleMap) moduleMap[sourceFile.fileName] = result;
 
 	if (result.flags & Flags.Internal) return result;
 	sourceFile.forEachChild(c => visit(c, result));
@@ -1688,7 +1871,7 @@ function parseSourceFile(sourceFile: ts.SourceFile): Node {
 			}
 		});
 
-	if (result.children?.length) extraModules.push(result);
+	if (result.children?.length) extraModules?.push(result);
 
 	return result;
 }
@@ -1737,14 +1920,14 @@ export function parse(options: ParseOptions): Node[] {
 					fileName,
 					options.source,
 					target,
-			  ))
+				))
 			: oldGetSourceFile.call(
 					this,
 					fn,
 					target,
 					onError,
 					shouldCreateNewSourceFile,
-			  );
+				);
 	};
 
 	setup(
@@ -1756,7 +1939,7 @@ export function parse(options: ParseOptions): Node[] {
 	sourceFiles = [sourceFile];
 
 	const sourceNode = parseSourceFile(sourceFile);
-	return sourceNode.children || extraModules || [];
+	return sourceNode.children || extraModules;
 }
 
 function buildProject(config: ts.ParsedCommandLine) {
@@ -1770,11 +1953,11 @@ function buildProject(config: ts.ParsedCommandLine) {
 function buildReference(config: ts.ParsedCommandLine) {
 	const path = (config.options as { configFilePath: string }).configFilePath;
 
-	if (!builtReferences.includes(path)) {
+	if (!builtReferences?.includes(path)) {
 		const oldProgram = program;
 		const oldTypeChecker = typeChecker;
 
-		builtReferences.push(path);
+		builtReferences?.push(path);
 		buildProject(config);
 
 		program = oldProgram;
@@ -1795,8 +1978,8 @@ function buildTsconfig(
 	currentIndex = {};
 
 	const result = {
-		modules: (extraModules ||= []),
-		index: (currentIndex ||= {}),
+		modules: extraModules,
+		index: currentIndex,
 		config,
 		env: {
 			typescript: tsLocal.version,

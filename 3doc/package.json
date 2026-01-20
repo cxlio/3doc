@@ -14,7 +14,8 @@
 		"./render-summary.js": "./render-summary.js"
 	},
 	"dependencies": {
-		"markdown-it": "^14.1.0"
+		"markdown-it": "^14.1.0",
+		"prettier": "^3.8.0"
 	},
 	"scripts": {
 		"build": "node build.ts",

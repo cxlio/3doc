@@ -9,7 +9,7 @@ import {
 	get,
 	tsx,
 } from '@cxl/ui';
-import { DocChip } from './chip.js';
+import { DocPill } from './chip.js';
 
 export class PageHeader extends Component {
 	module?: string;
@@ -21,7 +21,7 @@ component(PageHeader, {
 	init: [attribute('kind'), attribute('tags'), attribute('module')],
 	augment: [
 		css(`
-:host { display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px; }
+:host { display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
 #title { margin-inline-end: auto; }
 		`),
 		$ => {
@@ -30,7 +30,7 @@ component(PageHeader, {
 				tsx(
 					Flex,
 					{ gap: 16, middle: true },
-					tsx(DocChip, { kind: get($, 'kind') }, get($, 'kind')),
+					tsx(DocPill, { kind: get($, 'kind') }, get($, 'kind')),
 					tsx(
 						T,
 						{ font: 'headline-small', id: 'title' },

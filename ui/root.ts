@@ -1,10 +1,12 @@
-import { Application, component, ref, tsx } from '@cxl/ui';
+import { Application, component, ref, tsx, theme } from '@cxl/ui';
 
 //import { NavList } from './nav-list.js';
 import { Page } from './page.js';
 
 import type { SummaryJson } from './docgen.js';
 import type { Kind } from '../dts/enum.js';
+
+theme.colors['outline-variant'] = 'rgb(219, 221, 225)';
 
 export {
 	Body,
@@ -13,6 +15,7 @@ export {
 	Icon,
 	NavHeadline,
 	NavDropdown,
+	NavTarget,
 	Hr,
 } from '@cxl/ui';
 

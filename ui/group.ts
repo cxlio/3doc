@@ -11,7 +11,7 @@ import {
 	tsx,
 } from '@cxl/ui';
 
-import { DocChip } from './chip.js';
+import { DocPill, DocChip } from './chip.js';
 
 export class DocMembers extends Card {}
 component(DocMembers, {
@@ -43,7 +43,7 @@ component(DocMember, {
 				tsx(
 					RouterLink,
 					{ href: get($, 'href') },
-					tsx(DocChip, { size: -1, member: true }, tsx('slot')),
+					tsx(DocChip, undefined, tsx('slot')),
 				),
 			);
 		},
@@ -59,13 +59,14 @@ component(DocGroup, {
 	augment: [
 		css(`
 :host { display: flex; flex-direction: column; gap: 8px; }
+c-flex { flex-wrap: wrap; }
 		`),
 		$ => {
 			$.shadowRoot?.append(
 				tsx(
 					Flex,
 					{ gap: 16, middle: true },
-					tsx(DocChip, { kind: get($, 'kind') }, get($, 'kind')),
+					tsx(DocPill, { kind: get($, 'kind') }, get($, 'kind')),
 					tsx(T, { font: 'title-small' }, ''),
 				),
 				tsx(Flex, { gap: 8, middle: true }, tsx('slot')),

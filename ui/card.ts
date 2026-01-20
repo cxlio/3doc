@@ -11,7 +11,7 @@ import {
 	surface,
 } from '@cxl/ui';
 
-import { DocChip } from './chip.js';
+import { DocPill } from './chip.js';
 
 export class DocCard extends Component {
 	name?: string;
@@ -53,7 +53,7 @@ ${media('medium', ':host{}')}
 					tsx(
 						'div',
 						{ id: 'header' },
-						tsx(DocChip, { kind: get($, 'kind') }, get($, 'kind')),
+						tsx(DocPill, { kind: get($, 'kind') }, get($, 'kind')),
 						tsx(
 							T,
 							{ id: 'title', font: 'title-medium' },

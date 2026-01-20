@@ -1,6 +1,6 @@
 import { existsSync } from 'fs';
 import { dirname, join, resolve } from 'path';
-import { ParametersResult, Package, mkdirp, readJson, sh } from '@cxl/program';
+import { ParametersResult, mkdirp, readJson, sh } from '@cxl/program';
 import { Kind, BuildOptions, build, buildConfig } from '../dts/index.js';
 import type { DocGen, File } from './index.js';
 
@@ -9,6 +9,13 @@ export interface ExtraDocumentation {
 	icon?: string;
 	file: string;
 	index?: boolean;
+}
+
+export interface Package {
+	name: string;
+	version: string;
+	browser?: string;
+	repository?: string | { url: string; directory?: string };
 }
 
 export interface RuntimeConfig {
@@ -188,14 +195,13 @@ export function parseExample(value: string) {
 	return { title: '', value };
 }
 
-export function buildDts(args: BuildDocsOptions) {
+export function buildDts(args: BuildDocsOptions, pkg: Package) {
 	const { file, typeRoots, rootDir } = args;
-
 	const dtsOptions: BuildOptions = {
 		rootDir,
 		exportsOnly: true,
 		customJsDocTags: args.customJsDocTags,
-		cxlExtensions: args.cxlExtensions || false,
+		cxlExtensions: args.cxlExtensions ?? false,
 		forceExports: args.exports,
 		followReferences: args.followReferences,
 	};
@@ -205,17 +211,20 @@ export function buildDts(args: BuildDocsOptions) {
 				{
 					compilerOptions: {
 						allowJs: true,
-						rootDir: dirname(file[0]),
+						rootDir,
+						baseUrl: dirname(file[0]),
 						sourceMap: false,
+						module: 'nodenext',
+						moduleResolution: 'nodenext',
 						typeRoots: typeRoots || [],
 						noEmit: true,
-						lib: ['es2021'],
+						lib: pkg.browser ? ['esnext', 'dom'] : ['esnext'],
 					},
 					files: file,
 				},
 				process.cwd(),
 				dtsOptions,
-		  )
+			)
 		: build(args.tsconfig, dtsOptions);
 }
 
@@ -260,7 +269,7 @@ export async function buildDocs(
 		args.repository = typeof repo === 'string' ? repo : repo.url;
 	}
 
-	const json = buildDts(args);
+	const json = buildDts(args, pkgRepo);
 
 	const docgenConfig: DocGen = {
 		...args,

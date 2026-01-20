@@ -4,7 +4,9 @@ import {
 	css,
 	getShadow,
 	observeChildren,
+	onVisible,
 	attribute,
+	surface,
 	tsx,
 } from '@cxl/ui';
 
@@ -16,11 +18,14 @@ export class BlogCode extends Component {
 	language = 'html';
 
 	formatter?: (src: string) => string = (source: string) => {
-		return (
-			`<link rel="stylesheet" href="hljs.css" /><code>` +
-			hljs.highlight(source, { language: this.language }).value +
-			'</code>'
-		);
+		let code;
+		try {
+			code = hljs.highlight(source, { language: this.language }).value;
+		} catch (e) {
+			code = source;
+		}
+
+		return `<code>${code}</code>`;
 	};
 }
 
@@ -30,17 +35,99 @@ component(BlogCode, {
 	augment: [
 		css(`
 :host { display: block;  }
-.hljs { white-space: pre-wrap; font: var(--cxl-font-code); padding:16px; border-radius: 8px; border: 1px solid var(--cxl-color-outline-variant); }
+.hljs {
+	white-space: pre-wrap; font: var(--cxl-font-code);
+	padding:16px; border-radius: 8px;
+	${surface('surface-container')}
+}
+.hljs-comment,
+.hljs-quote {
+	color: var(--hljs-comment);
+	font-style: italic;
+}
+.hljs-operator,
+.hljs-punctuation,
+.hljs-subst,
+.hljs-name,
+.hljs-section,
+.hljs-selector-tag,
+.hljs-selector-class,
+.hljs-selector-attr,
+.hljs-selector-pseudo,
+.hljs-selector-id,
+.hljs-variable,
+.hljs-template-variable {
+	color: var(--hljs-structure);
+}
+.hljs-attribute,
+.hljs-attr,
+.hljs-meta-string {
+	color: var(--hljs-attr);
+}
+.hljs-keyword,
+.hljs-literal,
+.hljs-built_in,
+.hljs-doctag,
+.hljs-formula {
+	color: var(--hljs-keyword);
+}
+.hljs-function .hljs-title,
+.hljs-title.function_ {
+	color: var(--hljs-fn-title);
+}
+.hljs-function,
+.hljs-params {
+	color: var(--hljs-structure);
+}
+.hljs-type,
+.hljs-class .hljs-title,
+.hljs-title.class_ {
+	color: var(--hljs-type);
+}
+.hljs-interface .hljs-title {
+	color: var(--hljs-interface-title);
+}
+.hljs-string,
+.hljs-regexp {
+	color: var(--hljs-string);
+	opacity: 0.85;
+}
+.dark .hljs-string,
+.dark .hljs-regexp {
+	opacity: 0.88;
+}
+.hljs-number {
+	color: var(--hljs-number);
+}
+.hljs-meta,
+.hljs-tag {
+	color: var(--hljs-meta);
+}
+.hljs-tag .hljs-name {
+	color: var(--hljs-attr);
+}
+.hljs-emphasis {
+	font-style: italic;
+}
+.hljs-strong {
+	font-weight: 700;
+}
+.hljs-link {
+	text-decoration: underline;
+}
+
 	`),
 		host => {
 			const srcContainer = tsx('div', { className: 'hljs' });
 			srcContainer.style.tabSize = '4';
 			getShadow(host).append(srcContainer);
-			return observeChildren(host).raf(() => {
-				let src = host.childNodes[0]?.textContent?.trim() || '';
-				if (src && host.formatter) src = host.formatter(src);
-				srcContainer.innerHTML = src;
-			});
+			return onVisible(host).switchMap(() =>
+				observeChildren(host).raf(() => {
+					let src = host.childNodes[0]?.textContent?.trim() || '';
+					if (src && host.formatter) src = host.formatter(src);
+					srcContainer.innerHTML = src;
+				}),
+			);
 		},
 	],
 });

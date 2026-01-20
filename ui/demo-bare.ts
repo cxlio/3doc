@@ -103,8 +103,7 @@ component(DocDemoBare, {
   
   #toolbar {
 	gap: 16px;
-	height: 40px;
-	align-items: center;
+	align-items: end;
 	display: flex;
   }
 	`),

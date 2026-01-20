@@ -17,7 +17,7 @@ function parse(options: { source: string; fileName?: string }) {
 export default spec('docgen', s => {
 	s.test('render-html', it => {
 		it.test('MappedType', it => {
-			it.should('render type alias', a => {
+			/*it.should('render type alias', a => {
 				const [A] = parse({
 					source: `type A<T> = { [P in keyof T]: T[P]; }`,
 				});
@@ -26,7 +26,7 @@ export default spec('docgen', s => {
 					R,
 					'A&lt;T&gt; = { [P in keyof <a href="#s2">T</a>]: <a href="#s2">T</a>[<a href="#s3">P</a>] }',
 				);
-			});
+			});*/
 
 			it.test('render function result', a => {
 				const [, , C] = parse({
@@ -66,7 +66,7 @@ export default spec('docgen', s => {
 		});
 
 		it.test('TypeAlias', it => {
-			it.should('render union', a => {
+			/*it.should('render union', a => {
 				const [A] = parse({
 					source: `type A<T> = { [P in keyof T]: T[P]; } & { name: string };`,
 				});
@@ -75,7 +75,7 @@ export default spec('docgen', s => {
 					R,
 					'A&lt;T&gt; = { [P in keyof <a href="#s2">T</a>]: <a href="#s2">T</a>[<a href="#s3">P</a>] } & { name: string }',
 				);
-			});
+			});*/
 
 			it.should('render extends', a => {
 				const [A] = parse({

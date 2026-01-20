@@ -1,17 +1,18 @@
 import {
 	FieldBar,
-	Autocomplete,
+	AutocompleteDynamic,
 	C,
 	Option,
 	Icon,
 	InputOption,
 	component,
 	be,
+	on,
 	get,
 	tsx,
-	onLoad,
 	renderEach,
 	router,
+	getSearchRegex,
 } from '@cxl/ui';
 
 import type { Symbol } from './root.js';
@@ -25,17 +26,33 @@ component(DocSearchInput, {
 			const results = be<Symbol[]>([]);
 
 			const card = tsx(
-				Autocomplete,
-				{},
+				AutocompleteDynamic,
+				{
+					$: el =>
+						on(el, 'search').tap(ev => {
+							const term = ev.detail;
+							const result: Symbol[] = [];
+							let max = 1000;
+							if (term) {
+								const regex = getSearchRegex(term);
+								for (const s of CONFIG.symbols) {
+									if (regex.test(s.name)) result.push(s);
+									if (max-- < 0) break;
+								}
+							}
+
+							results.next(result);
+						}),
+				},
 				renderEach({
 					source: results,
 					render: r =>
 						tsx(
 							Option,
 							{
-								value: r.value.href,
+								value: r.map(v => v.href),
 							},
-							r.value.name,
+							r.map(v => v.name),
 						),
 					empty: () =>
 						tsx(C, { slot: 'empty', pad: 16 }, 'No Results Found'),
@@ -44,10 +61,6 @@ component(DocSearchInput, {
 			card.style.maxHeight = '50%';
 
 			$.size = -2;
-
-			function buildSearch() {
-				results.next(CONFIG.symbols);
-			}
 
 			$.append(
 				tsx(Icon, { name: 'search' }),
@@ -65,8 +78,6 @@ component(DocSearchInput, {
 				}),
 				card,
 			);
-
-			return onLoad().tap(buildSearch);
 		},
 	],
 });
