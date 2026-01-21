@@ -9,7 +9,7 @@ import {
 	parse as _parse,
 	printNode as _printNode,
 } from './index.js';
-import { TestApi, spec } from '@cxl/spec';
+import { Test, TestApi, spec } from '@cxl/spec';
 import * as ts from 'typescript';
 
 function parse(source: string, compilerOptions?: ts.CompilerOptions) {
@@ -25,7 +25,7 @@ function parseExports(source: string, compilerOptions?: ts.CompilerOptions) {
 	return _parse({ source, compilerOptions });
 }
 
-export default spec('dts', a => {
+const tests: Test = spec('dts', a => {
 	const test = a.test.bind(a);
 
 	a.test('single literal const', (a: TestApi) => {
@@ -1199,3 +1199,5 @@ export function B() {}
 		});
 	});
 });
+
+export default tests;

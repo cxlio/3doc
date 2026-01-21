@@ -159,18 +159,18 @@ export const defaultOptions: BuildOptions = {
 	cxlExtensions: false,
 };
 
-export const NumberType = createBaseType('number'),
-	StringType = createBaseType('string'),
-	BooleanType = createBaseType('boolean'),
-	UndefinedType = createBaseType('undefined'),
-	NullType = createBaseType('null'),
-	VoidType = createBaseType('void'),
-	AnyType = createBaseType('any'),
-	UnknownType = createBaseType('unknown'),
-	BigIntType = createBaseType('BigInt'),
-	NeverType = createBaseType('never');
+export const NumberType: Node = createBaseType('number'),
+	StringType: Node = createBaseType('string'),
+	BooleanType: Node = createBaseType('boolean'),
+	UndefinedType: Node = createBaseType('undefined'),
+	NullType: Node = createBaseType('null'),
+	VoidType: Node = createBaseType('void'),
+	AnyType: Node = createBaseType('any'),
+	UnknownType: Node = createBaseType('unknown'),
+	BigIntType: Node = createBaseType('BigInt'),
+	NeverType: Node = createBaseType('never');
 
-const dtsNode = Symbol('dtsNode');
+const dtsNode: symbol = Symbol('dtsNode');
 
 const printer = tsLocal.createPrinter({
 	removeComments: true,
@@ -229,7 +229,7 @@ function flags(flags: number, all: Record<number, string>) {
 	return result;
 }
 
-export function typeFlags(node: ts.Type) {
+export function typeFlags(node: ts.Type): (string | undefined)[] {
 	return flags(node.flags, tsLocal.TypeFlags);
 }
 
@@ -274,9 +274,10 @@ function _printNode(node: Node, visited: Node[] = []): PrintableNode {
 	};
 }
 
-export function printNode(node: Node) {
+export function printNode(node: Node): void {
 	console.log(JSON.stringify(_printNode(node), null, 2));
 }
+
 function getTypeNode(node: ts.Node) {
 	const type = typeChecker.getTypeAtLocation(node);
 	return typeChecker.typeToTypeNode(
@@ -303,7 +304,7 @@ function getReturnTypeNode(fn: ts.FunctionLikeDeclaration) {
 	);
 }
 
-export function printSignature(fn: Node) {
+export function printSignature(fn: Node): string {
 	let tsNode = fn.source?.node;
 	const sf = fn.source?.sourceFile;
 
@@ -438,7 +439,7 @@ export function printSignature(fn: Node) {
 	return printer.printNode(tsLocal.EmitHint.Unspecified, tsNode, sf);
 }
 
-export function print(node: Node) {
+export function print(node: Node): string {
 	return node.source?.sourceFile
 		? printer.printNode(
 				tsLocal.EmitHint.Unspecified,
@@ -448,7 +449,7 @@ export function print(node: Node) {
 		: '';
 }
 
-export function printTsNode(node: ts.Node) {
+export function printTsNode(node: ts.Node): void {
 	function print(node: ts.Node) {
 		const flagText: string[] = [];
 		if (node.flags)
@@ -2020,7 +2021,7 @@ export function buildConfig(
  * @param tsconfig Path to tsconfig.json file
  */
 export function build(
-	tsconfig = resolve('tsconfig.json'),
+	tsconfig: string = resolve('tsconfig.json'),
 	options?: Partial<BuildOptions>,
 ): Output {
 	const allOptions = {
