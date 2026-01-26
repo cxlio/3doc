@@ -11,8 +11,8 @@
 ## Example outputs (generated docs)
 
 - 3doc API: https://cxlio.github.io/docs/@cxl/3doc/
-- TypeScript compiler API (`typescript.d.ts`): https://cxlio.github.io/docs/typescript-dts/
-- TypeScript DOM API (`lib.dom.d.ts`): https://cxlio.github.io/docs/ts-lib-dom/
+- TypeScript compiler API (`typescript.d.ts`): https://cxlio.github.io/docs/typescript/
+- TypeScript DOM API (`lib.dom.d.ts`): https://cxlio.github.io/docs/dom/
 - Coaxial UI (web components) docs + demos: https://cxlio.github.io/docs/@cxl/ui/
 
 ### Commands used
