@@ -8,7 +8,7 @@ Client-side UI components and runtime for 3doc.
 
 -   Branch Version: [1.0.0](https://npmjs.com/package/@cxl/3doc.ui/v/1.0.0)
 -   License: GPL-3.0
--   Documentation: [Link](https:/cxlio.github.io/docs/ui)
+-   Documentation: [Link](https://cxlio.github.io/docs/@cxl/3doc.ui)
 -   Report Issues: [Github](https://github.com/cxlio/3doc/issues)
 
 ## Installation

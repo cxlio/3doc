@@ -1,7 +1,13 @@
 import { existsSync } from 'fs';
-import { dirname, join, resolve } from 'path';
+import { dirname, join, resolve, relative } from 'path';
 import { ParametersResult, mkdirp, readJson, sh } from '@cxl/program';
-import { Kind, BuildOptions, build, buildConfig } from '../dts/index.js';
+import {
+	Kind,
+	Output,
+	BuildOptions,
+	build,
+	buildConfig,
+} from '../dts/index.js';
 import type { DocGen, File } from './index.js';
 
 export interface ExtraDocumentation {
@@ -116,7 +122,7 @@ export const Parameters = {
 		many: true,
 	},
 	docsJson: {
-		help: 'Path to a custom "docs.json" file for configuring documentation generation.',
+		help: 'Path to a custom "3doc.json" file for configuring documentation generation.',
 		type: 'string',
 	},
 	baseHref: {
@@ -162,10 +168,6 @@ export const Parameters = {
 		help: 'Enables debug mode to print detailed output during documentation generation.',
 		type: 'boolean',
 	},
-	spa: {
-		help: 'Experimental Single Page App mode',
-		type: 'boolean',
-	},
 } as const;
 
 const ENTITIES_REGEX = /[&<"]/g;
@@ -175,14 +177,14 @@ const ENTITIES_MAP = {
 	'"': '&quot;',
 };
 
-export function escape(str: string) {
+export function escape(str: string): string {
 	return str.replace(
 		ENTITIES_REGEX,
 		e => ENTITIES_MAP[e as keyof typeof ENTITIES_MAP],
 	);
 }
 
-export function parseExample(value: string) {
+export function parseExample(value: string): { title: string; value: string } {
 	if (value.startsWith('<caption>')) {
 		const newLine = value.indexOf('\n');
 
@@ -195,7 +197,7 @@ export function parseExample(value: string) {
 	return { title: '', value };
 }
 
-export function buildDts(args: BuildDocsOptions, pkg: Package) {
+export function buildDts(args: BuildDocsOptions, pkg: Package): Output {
 	const { file, typeRoots, rootDir } = args;
 	const dtsOptions: BuildOptions = {
 		rootDir,
@@ -211,8 +213,7 @@ export function buildDts(args: BuildDocsOptions, pkg: Package) {
 				{
 					compilerOptions: {
 						allowJs: true,
-						rootDir,
-						baseUrl: dirname(file[0]),
+						baseUrl: relative(rootDir ?? '', dirname(file[0])),
 						sourceMap: false,
 						module: 'nodenext',
 						moduleResolution: 'nodenext',
@@ -220,42 +221,74 @@ export function buildDts(args: BuildDocsOptions, pkg: Package) {
 						noEmit: true,
 						lib: pkg.browser ? ['esnext', 'dom'] : ['esnext'],
 					},
-					files: file,
+					files: file.map(f => (rootDir ? relative(rootDir, f) : f)),
 				},
-				process.cwd(),
+				rootDir ?? process.cwd(),
 				dtsOptions,
 			)
 		: build(args.tsconfig, dtsOptions);
 }
 
+function resolvePaths(path: string | string[], dir: string) {
+	if (Array.isArray(path)) return path.map(p => resolve(dir, p));
+
+	return resolve(dir, path);
+}
+
+function isArgument(name: string): name is keyof BuildDocsOptions {
+	return name in Parameters;
+}
+
 export async function buildDocs(
 	config: BuildDocsOptions,
 	writeFile: (file: File, outDir: string) => Promise<void>,
-) {
+): Promise<void> {
+	const rootDir = resolve(
+		config.rootDir ?? (config.tsconfig ? dirname(config.tsconfig) : ''),
+	);
 	const args = {
 		outputDir: './docs',
 		clean: false,
 		debug: false,
-		spa: false,
+		spa: true,
 		tsconfig: 'tsconfig.json',
-		packageJson: 'package.json',
-		packageRoot: '',
+		packageJson: join(rootDir, 'package.json'),
 		summary: false,
 		...config,
+		rootDir,
 	};
 
-	if (args.docsJson || existsSync('3doc.json')) {
-		Object.assign(args, await readJson(args.docsJson || '3doc.json'));
+	const docsJson = args.docsJson ?? join(rootDir, '3doc.json');
+	if (existsSync(docsJson)) {
+		const newConfig = await readJson<BuildDocsOptions>(docsJson);
+		const pathArgs = [
+			'scripts',
+			'demoScripts',
+			'packageJson',
+			'file',
+			'tsconfig',
+			'typeRoots',
+		];
+		for (const arg in newConfig) {
+			if (isArgument(arg))
+				args[arg] = (
+					pathArgs.includes(arg)
+						? resolvePaths(newConfig[arg] as string, rootDir)
+						: newConfig[arg]
+				) as never;
+		}
 	}
 
 	function doClean(dir: string) {
-		return sh(`rm -f ${dir}/*.html ${dir}/*.json ${dir}/*.js`);
+		if (!dir) throw new Error('Invalid dir');
+		return sh(
+			`find "${dir}" -mindepth 1 -maxdepth 1 \\( -type f -o -type l \\) -delete`,
+		);
 	}
 
 	const outputDir = args.outputDir;
 	const pkgRepo = await readJson<Package>(args.packageJson);
 
-	args.packageRoot ||= dirname(resolve(args.packageJson));
 	await mkdirp(outputDir);
 	await mkdirp(outputDir + '/' + pkgRepo.version);
 

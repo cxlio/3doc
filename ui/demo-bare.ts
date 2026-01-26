@@ -16,9 +16,9 @@ import {
 	merge,
 	Iframe,
 	IconButton,
-	//Icon,
-	//ButtonText,
 } from '@cxl/ui';
+
+import { DocCode } from './code.js';
 
 /**
  * Defines a demo component that displays interactive code examples within an iframe,
@@ -40,8 +40,6 @@ export class DocDemoBare extends Component {
 	header =
 		'<style>html{overflow:hidden;color: var(--cxl-color-on-background);background-color:var(--cxl-color-background)}</style>';
 	libraries?: string;
-
-	formatter?: (src: string) => string;
 
 	getLibraryUrl(lib: string) {
 		return `https://cdn.jsdelivr.net/npm/${lib}`;
@@ -111,15 +109,9 @@ component(DocDemoBare, {
 			const view = get(host, 'view');
 			const iframeClass = be('container');
 			const example = tsx(Iframe, { className: iframeClass });
-			const source = tsx(Span, {
-				$: el =>
-					onVisible(el).tap(() => {
-						if (host.formatter)
-							el.innerHTML = host.formatter(rawSource);
-						else el.innerText = rawSource;
-					}),
+			const source = tsx(DocCode, {
 				className: view.map(v =>
-					v === 'source' ? 'source visible hljs' : 'source',
+					v === 'source' ? 'source visible' : 'source',
 				),
 			});
 			const toolbar = tsx(
@@ -178,6 +170,7 @@ component(DocDemoBare, {
 					: '';
 				example.srcdoc = `${host.header}${header}${src}`;
 				rawSource = src;
+				source.replaceChildren(new Text(src));
 			}
 
 			getShadow(host).append(

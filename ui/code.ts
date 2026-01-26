@@ -14,7 +14,7 @@ declare global {
 	var hljs: typeof import('highlight.js').default;
 }
 
-export class BlogCode extends Component {
+export class DocCode extends Component {
 	language = 'html';
 
 	formatter?: (src: string) => string = (source: string) => {
@@ -29,16 +29,18 @@ export class BlogCode extends Component {
 	};
 }
 
-component(BlogCode, {
+component(DocCode, {
 	tagName: 'doc-hl',
 	init: [attribute('language')],
 	augment: [
 		css(`
-:host { display: block;  }
-.hljs {
-	white-space: pre-wrap; font: var(--cxl-font-code);
+:host {
+	display: block;
 	padding:16px; border-radius: 8px;
 	${surface('surface-container')}
+}
+.hljs {
+	white-space: pre-wrap; font: var(--cxl-font-code);
 }
 .hljs-comment,
 .hljs-quote {
@@ -123,9 +125,11 @@ component(BlogCode, {
 			getShadow(host).append(srcContainer);
 			return onVisible(host).switchMap(() =>
 				observeChildren(host).raf(() => {
-					let src = host.childNodes[0]?.textContent?.trim() || '';
-					if (src && host.formatter) src = host.formatter(src);
-					srcContainer.innerHTML = src;
+					const src = Array.from(host.childNodes)
+						.map(r => r.textContent)
+						.join('');
+					srcContainer.innerHTML =
+						src && host.formatter ? host.formatter(src) : src;
 				}),
 			);
 		},

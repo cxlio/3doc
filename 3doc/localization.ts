@@ -114,18 +114,18 @@ const jsdocMap: Record<string, string> = {
 	returns: 'Returns',
 };
 
-export function groupTitle(kind: Kind) {
+export function groupTitle(kind: Kind): string {
 	return GroupTitle[kind] || translate('Unknown');
 }
 
-export function kindToString(kind: Kind) {
+export function kindToString(kind: Kind): string {
 	return KindMap[kind] || kind.toString();
 }
 
-export function translate(key: keyof typeof content) {
+export function translate(key: keyof typeof content): string {
 	return content[key] || key;
 }
 
-export function jsdocTitle(tag: string) {
+export function jsdocTitle(tag: string): string {
 	return jsdocMap[tag] || tag;
 }

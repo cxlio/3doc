@@ -2,7 +2,7 @@
 	"name": "@cxl/3doc.ui",
 	"version": "1.0.0",
 	"description": "Client-side UI components and runtime for 3doc.",
-	"homepage": "https:/cxlio.github.io/docs/ui",
+	"homepage": "https://cxlio.github.io/docs/@cxl/3doc.ui",
 	"license": "GPL-3.0",
 	"browser": "./index.bundle.js",
 	"type": "module",

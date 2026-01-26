@@ -35,7 +35,7 @@ function getHref(node: Summary) {
 	return node.name ? `docs/ui-${node.name}` : undefined;
 }
 
-export function link(node: Summary) {
+export function link(node: Summary): string {
 	const href = getHref(node);
 	const name = node.name ?? '?';
 	return href ? `[${name}](${href})` : name;
@@ -102,7 +102,6 @@ export function renderNode(node: Node, all: Node[]) {
 		nodeType: string | number | Summary | undefined,
 	): string | undefined {
 		const type = getType(nodeType);
-		if (!type && nodeType) console.log(nodeType);
 		if (!type || typeof type === 'string') return type || '?';
 
 		switch (type.kind) {
@@ -127,7 +126,7 @@ export function renderNode(node: Node, all: Node[]) {
 				return signature(type);
 			case Kind.ClassType: {
 				const ref = getRef(nodeType);
-				return ref ? link(ref) : type.name ?? '?';
+				return ref ? link(ref) : (type.name ?? '?');
 			}
 			case Kind.IndexedType:
 				return `
@@ -135,7 +134,7 @@ export function renderNode(node: Node, all: Node[]) {
 						${renderType(type.children?.[1])}]
 				`;
 			default:
-				console.log(type);
+				console.log(type.name);
 		}
 
 		return undefined;
@@ -147,10 +146,10 @@ export function renderNode(node: Node, all: Node[]) {
 			flags & Flags.Public
 				? 'public '
 				: flags & Flags.Private
-				? 'private'
-				: flags & Flags.Protected
-				? 'protected '
-				: '';
+					? 'private'
+					: flags & Flags.Protected
+						? 'protected '
+						: '';
 
 		const name = `${modifiers}${flags & Flags.Rest ? '...' : ''}${p.name}${
 			flags & Flags.Optional ? '?' : ''
@@ -177,8 +176,8 @@ export function renderNode(node: Node, all: Node[]) {
 			node.kind === Kind.Getter
 				? 'get '
 				: node.kind === Kind.Setter
-				? 'set '
-				: undefined;
+					? 'set '
+					: undefined;
 
 		return `${flags & Flags.Static ? 'static ' : ''}${
 			flags & Flags.Readonly ? 'readonly ' : ''
@@ -339,10 +338,10 @@ ${value}
 		return result;
 	}
 
+	const name = node.name;
 	const tagName = node.kind === Kind.Component && node.docs?.tagName;
-	if (!tagName) return '';
 
-	return `# ${tagName}
+	return `# ${name}${tagName ? ` (${tagName})` : ''}
 ${node.type && renderExtends(node.type)}
 
 ${renderDocumentation(node)}
@@ -351,13 +350,14 @@ ${renderInherited(node)}
 	`;
 }
 
-export function render(_app: DocGen, output: Output): File[] {
+export function render(app: DocGen, output: Output): File[] {
 	const index = Object.values(output.index);
 	const md = index.map(d => renderNode(d, index)).join('');
+	const version = app.modulePackage.version;
 
 	return [
 		{
-			name: 'index.md',
+			name: version ? `${version}/index.md` : 'index.md',
 			content: md,
 		},
 	];

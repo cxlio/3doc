@@ -13,7 +13,6 @@ export interface DocgenOptions {
 	uiCdn: string;
 	link?: (node: Summary) => string | Node;
 	importmap?: string;
-	codeHighlight?: (src: string) => string;
 }
 
 const GroupTitle: Record<number, string> = {
@@ -61,7 +60,6 @@ export function docgenRender({
 	link = createLink,
 	uiCdn,
 	importmap,
-	codeHighlight,
 }: DocgenOptions) {
 	const { getTypeSummary, getRef, isFunction } = docgen(summaryJson);
 
@@ -267,11 +265,7 @@ background-color:var(--cxl-color-background)}</style>`;
 		const script =
 			(importmap ?? '') +
 			`<script type="module" src="${uiCdn}"></script>`;
-		const demo = tsx(
-			DocDemo,
-			{ header: css + script, formatter: codeHighlight },
-			value,
-		);
+		const demo = tsx(DocDemo, { header: css + script }, value);
 		return [
 			title ? tsx(T, { font: 'title-medium' }, title) : undefined,
 			demo,

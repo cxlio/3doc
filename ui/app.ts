@@ -24,7 +24,7 @@ theme.globalCss += `
 doc-ct { gap:8px;margin-bottom:24px;white-space:wrap;font:var(--cxl-font-code);font-size:18px;display:flex;align-items:center; }
 doc-card dl { display: flex; flex-direction: column; }
 doc-card dt { border-inline-start: 2px solid var(--cxl-color-outline-variant); padding-inline-start: 16px; }
-doc-card dd { border-inline-start: 2px solid var(--cxl-color-outline-variant); margin-inline-start: 0; padding-inline-start: 16px; margin-bottom:8px; }
+doc-card dd { border-inline-start: 2px solid var(--cxl-color-outline-variant); margin-inline-start: 0; padding-inline-start: 16px; margin-bottom:16px; }
 :last-child{margin-bottom:0}
 code{border-radius:4px;background-color:var(--cxl-color-surface-container);color:var(--cxl-color-on-surface);padding:2px 4px;${font('code')}}
 `;
@@ -133,9 +133,10 @@ c-application[theme=dark] {
 #pagebody { margin: 0 auto; max-width:1200px; }
 #navbar[responsiveon] {
 	overflow:hidden; width:320px;
-	padding: 8px; box-sizing: border-box;
+	box-sizing: border-box;
 	flex-grow: 1;
 }
+::slotted([slot=navbar]) { padding: 8px; }
 c-application { opacity: 0; }
 c-application[ready] { opacity: 1; }
 #version{margin-left:auto;}

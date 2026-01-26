@@ -13,15 +13,6 @@ import { DocDemoBare } from './demo-bare.js';
 export class DocDemo extends DocDemoBare {
 	header = this.getHeader();
 
-	hljsCss = 'hljs.css';
-
-	formatter?: (src: string) => string = (source: string) => {
-		return (
-			`<link rel="stylesheet" href="${this.hljsCss}" />` +
-			hljs.highlight(source, { language: 'html' }).value
-		);
-	};
-
 	protected getHeader() {
 		const header =
 			'<style>html{overflow:hidden;color: var(--cxl-color-on-background);background-color:var(--cxl-color-background)}</style>';

@@ -36,8 +36,10 @@ component(DocSearchInput, {
 							if (term) {
 								const regex = getSearchRegex(term);
 								for (const s of CONFIG.symbols) {
-									if (regex.test(s.name)) result.push(s);
-									if (max-- < 0) break;
+									if (regex.test(s.name)) {
+										result.push(s);
+										if (max-- < 0) break;
+									}
 								}
 							}
 

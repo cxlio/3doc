@@ -3,6 +3,7 @@
 	"compilerOptions": {
 		"outDir": "../dist/3doc",
 		"allowSyntheticDefaultImports": true,
+		"isolatedDeclarations": true,
 		"types": ["node"]
 	},
 	"references": [{ "path": "../dts" }],

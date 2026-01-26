@@ -531,12 +531,17 @@ export function renderJson(output: Output): SummaryJson {
 	return { index };
 }
 
-export function flatDocumentationContent(doc: DocumentationContent[] | string) {
+export function flatDocumentationContent(
+	doc: DocumentationContent[] | string,
+): string {
 	if (typeof doc === 'string') return doc;
 	return doc.map(d => d.value).join(' ');
 }
 
-export function findExamples(node: Summary, tagName = node.name): Example[] {
+export function findExamples(
+	node: Summary,
+	tagName: string | undefined = node.name,
+): Example[] {
 	const result: Example[] = [];
 
 	tagName ||= node.docs?.tagName;

@@ -1,4 +1,4 @@
-import { spec } from '@cxl/spec';
+import { Test, spec } from '@cxl/spec';
 import { SignatureText } from './render-summary.js';
 import { Kind, Node, parse as _parse } from '../dts/index.js';
 
@@ -14,7 +14,7 @@ function parse(options: { source: string; fileName?: string }) {
 	});
 }
 
-export default spec('docgen', s => {
+const tests: Test = spec('docgen', s => {
 	s.test('render-html', it => {
 		it.test('MappedType', it => {
 			/*it.should('render type alias', a => {
@@ -94,3 +94,5 @@ export default spec('docgen', s => {
 		});
 	});
 });
+
+export default tests;

@@ -48,7 +48,6 @@ type Index = Record<number, Node>;
 
 export interface BuildOptions {
 	customJsDocTags?: string[];
-	packageRoot?: string;
 	rootDir: string | undefined;
 	exportsOnly: boolean;
 	cxlExtensions: boolean;
@@ -193,7 +192,9 @@ let builtReferences: string[] | undefined;
 const parseConfigHost: ts.FormatDiagnosticsHost & ts.ParseConfigFileHost = {
 	useCaseSensitiveFileNames: true,
 	readDirectory: sys.readDirectory,
-	getCurrentDirectory: sys.getCurrentDirectory,
+	getCurrentDirectory() {
+		return config?.options.rootDir ?? sys.getCurrentDirectory();
+	},
 	getNewLine: () => '\n',
 	fileExists: sys.fileExists,
 	getCanonicalFileName: f => f,
@@ -300,6 +301,7 @@ function getReturnTypeNode(fn: ts.FunctionLikeDeclaration) {
 		fn,
 		tsLocal.NodeBuilderFlags.NoTruncation |
 			tsLocal.NodeBuilderFlags.WriteTypeArgumentsOfSignature |
+			tsLocal.NodeBuilderFlags.UseOnlyExternalAliasing |
 			tsLocal.NodeBuilderFlags.IgnoreErrors,
 	);
 }
@@ -470,12 +472,16 @@ function createBaseType(name: string): Node {
 	return { name, kind: Kind.BaseType, flags: 0 };
 }
 
-function parseTsConfig(tsconfig: string, _options?: BuildOptions) {
+function parseTsConfig(tsconfig: string, options?: BuildOptions) {
 	let parsed: ts.ParsedCommandLine | undefined;
 	try {
 		parsed = getParsedCommandLineOfConfigFile(
 			tsconfig,
-			{},
+			{
+				rootDir: options?.rootDir
+					? resolve(options.rootDir)
+					: undefined,
+			},
 			parseConfigHost,
 		);
 	} catch (e) {
@@ -515,7 +521,7 @@ function createNodeId(_tsNode: ts.Node, _node?: Node) {
 }
 
 function getNodeSource(node: ts.Node): Source | undefined {
-	const root = currentOptions?.packageRoot || process.cwd();
+	const root = currentOptions?.rootDir || process.cwd();
 	const sourceFile = node.getSourceFile() as ts.SourceFile | null;
 	const result = sourceFile
 		? {
@@ -1977,7 +1983,6 @@ function buildTsconfig(
 	sourceFiles = [];
 	extraModules = [];
 	currentIndex = {};
-
 	const result = {
 		modules: extraModules,
 		index: currentIndex,

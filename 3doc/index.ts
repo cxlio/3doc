@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { promises as fs } from 'fs';
+import { join } from 'path';
 import { Package, program, parseArgv } from '@cxl/program';
 import { Node } from '../dts/index.js';
 
@@ -79,12 +80,6 @@ export interface DocGen {
 	packageJson: string;
 
 	/**
-	 * @description The root directory of the package for resolving paths.
-	 * @cli `--rootDir`
-	 */
-	packageRoot: string;
-
-	/**
 	 * @description Sets the title of the generated documentation. Defaults to the `name` property in `package.json`.
 	 * @cli `--packageName`
 	 */
@@ -160,6 +155,13 @@ export interface DocGen {
 
 	/**
 	 * @description Enables support for Coaxial UI extensions within the generated documentation.
+	 *
+	 * When enabled:
+	 * - Renders `@demo` example blocks as interactive `<doc-demo>` elements instead of plain code.
+	 * - Adds support for JSDoc `@tagName`.
+	 * - Adds support for JSDoc `@attribute` and `@event`.
+	 * - Detects component classes and their metadata.
+	 *
 	 * @cli `--cxlExtensions`
 	 */
 	cxlExtensions?: boolean;
@@ -188,8 +190,9 @@ export interface DocGen {
 await program({}, async ({ log }) => {
 	async function writeFile(file: File, out: string) {
 		const name = file.name;
-		log(`Writing ${name}${file.node ? ` from ${file.node.name}` : ''}`);
-		await Promise.all([fs.writeFile(`${out}/${name}`, file.content)]);
+		const dest = join(out, name);
+		log(`Writing ${dest}${file.node ? ` from ${file.node.name}` : ''}`);
+		await Promise.all([fs.writeFile(dest, file.content)]);
 	}
 
 	try {

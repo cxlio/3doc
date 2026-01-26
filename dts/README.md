@@ -8,7 +8,7 @@ Generate a JSON AST of your TypeScript public API (exports, types, JSDoc) from t
 
 -   Branch Version: [1.0.0](https://npmjs.com/package/@cxl/dts/v/1.0.0)
 -   License: GPL-3.0-only
--   Documentation: [Link](https:/cxlio.github.io/docs/dts)
+-   Documentation: [Link](https://cxlio.github.io/docs/@cxl/dts)
 -   Report Issues: [Github](https://github.com/cxlio/3doc/issues)
 
 ## Installation

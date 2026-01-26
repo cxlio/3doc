@@ -16,7 +16,7 @@
 	"dependencies": {
 		"typescript": "^5.9.3"
 	},
-	"homepage": "https:/cxlio.github.io/docs/dts",
+	"homepage": "https://cxlio.github.io/docs/@cxl/dts",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/cxlio/3doc.git",

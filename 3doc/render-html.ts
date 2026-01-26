@@ -4,7 +4,7 @@ import {
 	Kind,
 	Flags,
 	Source,
-	printSignature,
+	//printSignature,
 	DocumentationContent,
 	printNode as _printNode,
 } from '../dts/index.js';
@@ -102,13 +102,14 @@ function Property(node: Node) {
 	return SignatureText(node);
 }
 
-function collapse(body: string) {
+/*function collapse(body: string) {
 	return `<doc-more> ${body}</doc-more>`;
-}
+}*/
 
 function ObjectType(node: Node) {
 	const result = `${node.children?.map(Property).join('; ') || ''}`;
-	return result.length > 300 ? `{ ${collapse(result)} }` : `{ ${result} }`;
+	return `{ ${result} }`;
+	//return result.length > 300 ? `{ ${collapse(result)} }` : `{ ${result} }`;
 }
 
 function MappedType(type: Node) {
@@ -168,11 +169,12 @@ export function renderType(type: Node): string {
 		case Kind.ConstructorType:
 			return `new ${FunctionType(type)}`;
 		case Kind.Keyof:
-			return type.resolvedType
+			return `keyof ${Type(type.type)}`;
+		/*return type.resolvedType
 				? `<doc-more><x slot="off"> keyof ${Type(type.type)}</x> ${Type(
 						type.resolvedType,
 					)}</doc-more>`
-				: `keyof ${Type(type.type)}`;
+				: `keyof ${Type(type.type)}`;*/
 		case Kind.Typeof:
 			return `typeof ${type.name}`;
 		case Kind.ThisType:
@@ -187,7 +189,7 @@ export function renderType(type: Node): string {
 		case Kind.UnknownType:
 			return 'unknown';
 		default:
-			return Signature(type);
+			return SignatureText(type);
 	}
 }
 
@@ -272,7 +274,7 @@ function SignatureName({ flags, kind, name }: Node) {
 }
 
 function IndexSignature(node: Node) {
-	const params = node.parameters?.map(Signature).join('') || '';
+	const params = node.parameters?.map(SignatureText).join('') || '';
 	return `[${params}]: ${node.type ? renderType(node.type) : '?'}`;
 }
 
@@ -307,9 +309,7 @@ function getSourceLink(src: Source) {
 	const url = application.repositoryLink;
 	if (url && src.sourceFile && !src.sourceFile.isDeclarationFile) {
 		const pos = src.sourceFile.getLineAndCharacterOfPosition(src.index);
-		const fileUrl = `${relative(application.packageRoot, src.name)}#L${
-			pos.line + 1
-		}`;
+		const fileUrl = `${src.name}#L${pos.line + 1}`;
 		return fileUrl;
 	}
 	return '';
@@ -324,7 +324,7 @@ function Code(source: string, language?: string) {
 }
 
 function Demo(doc: DocumentationContent): string {
-	const { title, value } = parseExample(getDocValue(doc.value));
+	const { title, value } = parseExample(getRawDocValue(doc.value));
 
 	const demo = application.cxlExtensions
 		? `<doc-demo${
@@ -383,8 +383,13 @@ function DocLink(value: string) {
 	return symbol ? Link(symbol, title) : ExternalLink(name, title);
 }
 
-function getDocValue(content: DocumentationContent['value']) {
+function getRawDocValue(content: DocumentationContent['value']) {
 	if (typeof content === 'string') return content;
+	return content.map(doc => doc.value).join(' ');
+}
+
+function getDocValue(content: DocumentationContent['value']) {
+	if (typeof content === 'string') return escape(content);
 
 	return content
 		.map(doc => {
@@ -411,10 +416,10 @@ function Documentation(node: Node) {
 		if (typeof doc.value === 'string' && doc.tag === 'link')
 			return DocLink(doc.value);
 
-		const value = getDocValue(doc.value).trim();
+		const value = getRawDocValue(doc.value).trim();
 		const text = application.markdown
 			? Markdown(value, !value.includes('\n'))
-			: formatContent(value);
+			: formatContent(escape(value));
 
 		if (doc.tag === 'return')
 			return `<c-t font="h6">Returns</c-t><p>${text}</p>`;
@@ -437,8 +442,8 @@ function ParameterDocumentation(node: Node) {
 	return Documentation(node);
 }
 
-export function prettify(node: Node) {
-	return escape(printSignature(node));
+export function prettify(node: Node): string {
+	return SignatureText(node);
 }
 
 function MemberBody(c: Node) {
@@ -544,58 +549,12 @@ function ModuleTitle(node: Node) {
 	return `<doc-page-header kind="${
 		Kind[node.kind]
 	}"><div slot="tags">${tags}</div>${name}</doc-page-header>`;
-
-	/*const chips =
-		`<c-flex gap="8">` +
-		NodeChips(node) +
-		(node.kind === Kind.Module ? Chip('module') : '') +
-		(node.kind === Kind.Class ? Chip('class') : '') +
-		(node.kind === Kind.Interface ? Chip('interface') : '') +
-		(node.kind === Kind.Component ? Chip('component') : '') +
-		(node.kind === Kind.Namespace ? Chip('namespace') : '') +
-		(node.kind === Kind.Enum ? Chip('enum') : '') +
-		(docs?.role ? Chip(`role: ${docs.role}`) : '') +
-		(node.flags & Flags.DeclarationMerge ? Chip('declaration merge') : '') +
-		`</c-flex>`;
-	const subtitle =
-		node.kind === Kind.Component
-			? TagName(node)
-			: node.kind === Kind.Module
-			? ''
-			: '';
-
-	return `${chips}<c-t font="h3">${SignatureText(node)}${subtitle}</c-t>`;*/
 }
-
-/*function getImportUrl(source: Source) {
-	const pkg = application.modulePackage?.name;
-	const moduleName = source.name.replace(/\.tsx?$/, '');
-
-	return `${pkg}${moduleName === 'index' ? '' : `/${moduleName}`}`;
-}
-
-function ImportStatement(node: Node) {
-	if (node.kind === Kind.Module || !application.modulePackage) return '';
-	const source = Array.isArray(node.source) ? node.source[0] : node.source;
-	if (!source) return '';
-	const importUrl = getImportUrl(source);
-	const isDeclaration =
-		importUrl.endsWith('.d') || node.flags & Flags.DeclarationMerge;
-
-	return isDeclaration
-		? ''
-		: `<c-t h5>Import</c-t>${Code(
-				`import { ${node.name} } from '${importUrl}';`
-		  )}`;
-}*/
 
 function MemberIndexLink(node: Node, parent?: Node) {
-	//const chips = node.flags & Flags.Static ? `${Chip('static')} ` : '';
 	return `<doc-member href="${getHref(node, parent)}">${
 		node.name
 	}</doc-member>`;
-	/*const link = Link(node, undefined, parent);
-	return link.startsWith('<') ? link : `<c>${link}</c>`;*/
 }
 
 function MemberGroupIndex({ kind, index }: Group) {
@@ -941,7 +900,7 @@ function escapeFileName(name: string, replaceExt = '.html') {
 function getPageName(page: Node) {
 	if (page.kind === Kind.Module) {
 		const result = escapeFileName(page.name);
-		return result === 'index.html' && existsSync('README.md')
+		return result === 'index.html' && getReadme()
 			? 'index-api.html'
 			: result;
 	}
@@ -967,7 +926,7 @@ function Page(p: Node) {
 	};
 }
 
-export function hasOwnPage(node: Node) {
+export function hasOwnPage(node: Node): number | boolean | undefined {
 	return (
 		node.kind === Kind.Class ||
 		//node.kind === Kind.Interface ||
@@ -1076,7 +1035,7 @@ function renderExtraFile({ file, index, title }: ExtraDocumentation) {
 		title,
 		name: index
 			? 'index.html'
-			: escapeFileName(relative(application.packageRoot, file)),
+			: escapeFileName(relative(application.rootDir ?? '', file)),
 		content,
 	};
 }
@@ -1086,7 +1045,7 @@ function initRuntimeConfig(app: DocGen) {
 	const scripts = getDemoScripts();
 
 	docgenConfig = {
-		packageName: pkg.name,
+		packageName: app.packageName ?? pkg.name,
 		activeVersion: pkg.version || '',
 		versions: pkg.version && 'version.json',
 		repository: application.repositoryLink,
@@ -1095,6 +1054,7 @@ function initRuntimeConfig(app: DocGen) {
 		spa: application.spa,
 		symbols: allSymbols
 			.filter(s => s.flags & Flags.Export)
+			.sort(sortNode)
 			.map(s => ({
 				name: s.name,
 				tagName: s.docs?.tagName,
@@ -1112,6 +1072,11 @@ function versionPrefix(version: string, file: File) {
 	return { ...file, name: `${version}/${file.name}` };
 }
 
+function getReadme() {
+	const readmePath = join(application.rootDir ?? '', 'README.md');
+	if (existsSync(readmePath)) return readmePath;
+}
+
 export function render(app: DocGen, output: Output): File[] {
 	application = app;
 	if (!app.rootDir && output.config.options.rootDir)
@@ -1120,11 +1085,11 @@ export function render(app: DocGen, output: Output): File[] {
 	allSymbols = Object.values(output.index);
 	const scripts = getDemoScripts(application.scripts || [], 's');
 	const demoScripts = initRuntimeConfig(app);
-	const readmePath = join(application.packageRoot, 'README.md');
+	const readmePath = getReadme();
 	const version = app.modulePackage.version;
 	extraDocs =
 		app.extra ||
-		(existsSync(readmePath)
+		(readmePath
 			? [
 					{
 						items: [
@@ -1234,9 +1199,7 @@ export function render(app: DocGen, output: Output): File[] {
 	});
 
 	if (needsIndex) {
-		const readme = existsSync(readmePath)
-			? readFileSync(readmePath, 'utf8')
-			: '';
+		const readme = readmePath ? readFileSync(readmePath, 'utf8') : '';
 		const content = readme ? Markdown(readme) : '';
 
 		files.push({
