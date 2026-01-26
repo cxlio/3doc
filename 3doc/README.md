@@ -73,7 +73,7 @@ Generate docs for one or more files:
 
 ## Configuration (`3doc.json`)
 
-If `3doc.json` exists in the project root (or is provided via `--docsJson`), it is merged into CLI args. Path-like options (e.g. `scripts`, `demoScripts`, `packageJson`, `file`, `tsconfig`, `typeRoots`) are resolved relative to the project root.
+If `3doc.json` exists in the project root (or is provided via `--docsJson`), it is merged into CLI args.
 
 Example:
 
