@@ -8,7 +8,7 @@ import {
 	DocumentationContent,
 	printNode as _printNode,
 } from '../dts/index.js';
-import type { DocGen, File } from './index.js';
+import type { File } from './index.js';
 import {
 	kindToString,
 	groupTitle,
@@ -34,7 +34,9 @@ interface Group {
 	unique: Record<string, boolean>;
 }
 
-let application: DocGen;
+import type { Configuration } from './render.js';
+
+let application: Configuration;
 let extraDocs: Section[];
 let docgenConfig: RuntimeConfig;
 let modules: Node[];
@@ -306,7 +308,7 @@ export function Signature(node: Node): string {
 }*/
 
 function getSourceLink(src: Source) {
-	const url = application.repositoryLink;
+	const url = application.repository;
 	if (url && src.sourceFile && !src.sourceFile.isDeclarationFile) {
 		const pos = src.sourceFile.getLineAndCharacterOfPosition(src.index);
 		const fileUrl = `${src.name}#L${pos.line + 1}`;
@@ -894,7 +896,12 @@ function Header(config: string, scripts: File[]) {
 }
 
 function escapeFileName(name: string, replaceExt = '.html') {
-	return name.replace(/\.([tj]sx?|md)$/, replaceExt).replace(/[/"]/g, '--');
+	if (application.rootDir && name.startsWith('/'))
+		name = relative(application.rootDir, name);
+
+	return name
+		.replace(/\.([tj]sx?|md|html)$/, replaceExt)
+		.replace(/[/"]/g, '--');
 }
 
 function getPageName(page: Node) {
@@ -1033,14 +1040,12 @@ function renderExtraFile({ file, index, title }: ExtraDocumentation) {
 		: source;
 	return {
 		title,
-		name: index
-			? 'index.html'
-			: escapeFileName(relative(application.rootDir ?? '', file)),
+		name: index ? 'index.html' : escapeFileName(file),
 		content,
 	};
 }
 
-function initRuntimeConfig(app: DocGen) {
+function initRuntimeConfig(app: Configuration) {
 	const pkg = app.modulePackage;
 	const scripts = getDemoScripts();
 
@@ -1048,7 +1053,7 @@ function initRuntimeConfig(app: DocGen) {
 		packageName: app.packageName ?? pkg.name,
 		activeVersion: pkg.version || '',
 		versions: pkg.version && 'version.json',
-		repository: application.repositoryLink,
+		repository: application.repository,
 		demoScripts: scripts.map(s => s.name),
 		demoStyles: application.demoStyles,
 		spa: application.spa,
@@ -1077,11 +1082,8 @@ function getReadme() {
 	if (existsSync(readmePath)) return readmePath;
 }
 
-export function render(app: DocGen, output: Output): File[] {
+export function render(app: Configuration, output: Output): File[] {
 	application = app;
-	if (!app.rootDir && output.config.options.rootDir)
-		app.rootDir = output.config.options.rootDir;
-
 	allSymbols = Object.values(output.index);
 	const scripts = getDemoScripts(application.scripts || [], 's');
 	const demoScripts = initRuntimeConfig(app);
@@ -1103,7 +1105,6 @@ export function render(app: DocGen, output: Output): File[] {
 					},
 				]
 			: []);
-
 	modules = [];
 
 	let needsIndex = true as boolean;

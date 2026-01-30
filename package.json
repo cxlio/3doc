@@ -5,7 +5,7 @@
 	"homepage": "https://cxlio.github.io/docs/",
 	"description": "TypeScript/JavaScript API documentation generator that builds versioned static HTML and JSON with Markdown/JSDoc support, and custom tags.",
 	"devDependencies": {
-		"@cxl/build": "^1.0.0-beta",
+		"@cxl/build": "^1.0.0",
 		"@cxl/program": "1.0.0",
 		"@cxl/rx": "^1.0.0",
 		"@cxl/spec": "^1.0.1",

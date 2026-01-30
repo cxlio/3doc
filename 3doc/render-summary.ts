@@ -11,7 +11,8 @@ import { existsSync } from 'fs';
 
 import { escape } from './render.js';
 
-import type { DocGen, File } from './index.js';
+import type { File } from './index.js';
+import type { Configuration } from './render.js';
 
 declare module '../dts/index.js' {
 	interface Node {
@@ -573,7 +574,7 @@ export function findExamples(
 	return result;
 }
 
-export function render(app: DocGen, output: Output): File[] {
+export function render(app: Configuration, output: Output): File[] {
 	const version = app.modulePackage.version;
 
 	return [

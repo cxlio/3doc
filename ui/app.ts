@@ -198,12 +198,7 @@ ${media(
 					tsx(
 						'div',
 						{ id: 'page' },
-						tsx(
-							'div',
-							{ id: 'pagebody' },
-							tsx('slot'),
-							//tsx(RouterOutlet),
-						),
+						tsx('div', { id: 'pagebody' }, tsx('slot')),
 					),
 				),
 			);

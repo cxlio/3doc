@@ -8,7 +8,7 @@ import {
 	build,
 	buildConfig,
 } from '../dts/index.js';
-import type { DocGen, File } from './index.js';
+import type { File } from './index.js';
 
 export interface ExtraDocumentation {
 	title: string;
@@ -46,9 +46,15 @@ export interface Section {
 	items: ExtraDocumentation[];
 }
 
-export interface DocsJson {
-	extra: Section[];
+export interface DocsJson extends BuildDocsOptions {
+	extra?: Section[];
 }
+
+export type Configuration = DocsJson & {
+	modulePackage: Package;
+	spa: boolean;
+	outputDir: string;
+};
 
 export interface VersionJson {
 	all: string[];
@@ -250,7 +256,7 @@ export async function buildDocs(
 		outputDir: './docs',
 		clean: false,
 		debug: false,
-		spa: true,
+		//spa: true,
 		tsconfig: 'tsconfig.json',
 		packageJson: join(rootDir, 'package.json'),
 		summary: false,
@@ -260,7 +266,7 @@ export async function buildDocs(
 
 	const docsJson = args.docsJson ?? join(rootDir, '3doc.json');
 	if (existsSync(docsJson)) {
-		const newConfig = await readJson<BuildDocsOptions>(docsJson);
+		const newConfig = await readJson<DocsJson>(docsJson);
 		const pathArgs = [
 			'scripts',
 			'demoScripts',
@@ -270,10 +276,21 @@ export async function buildDocs(
 			'typeRoots',
 		];
 		for (const arg in newConfig) {
-			if (isArgument(arg))
+			const docsJsonDir = dirname(docsJson);
+			if (arg === 'extra') {
+				(args as DocsJson).extra = (newConfig.extra ?? []).map(
+					section => ({
+						...section,
+						items: section.items.map(item => ({
+							...item,
+							file: resolve(docsJsonDir, item.file),
+						})),
+					}),
+				);
+			} else if (isArgument(arg))
 				args[arg] = (
 					pathArgs.includes(arg)
-						? resolvePaths(newConfig[arg] as string, rootDir)
+						? resolvePaths(newConfig[arg] as string, docsJsonDir)
 						: newConfig[arg]
 				) as never;
 		}
@@ -304,10 +321,10 @@ export async function buildDocs(
 
 	const json = buildDts(args, pkgRepo);
 
-	const docgenConfig: DocGen = {
+	const docgenConfig: Configuration = {
 		...args,
 		modulePackage: pkgRepo,
-		repositoryLink: args.repository,
+		spa: true,
 	};
 
 	if (args.summary) {

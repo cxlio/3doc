@@ -16,7 +16,10 @@ export {
 	NavHeadline,
 	NavDropdown,
 	NavTarget,
+	GridList,
+	CardItem,
 	Hr,
+	R,
 } from '@cxl/ui';
 
 declare global {

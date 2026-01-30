@@ -1,11 +1,12 @@
-import { relative } from "path";
-import { Kind, Output, Node, Source } from "../dts/index.js";
-import type { DocGen, File } from "./index.js";
+import { relative } from 'path';
+import { Kind, Output, Node, Source } from '../dts/index.js';
+import type { File } from './index.js';
+import type { Configuration } from './render.js';
 
 function serialize(key: string, value: unknown) {
 	const cwd = process.cwd();
 
-	if (key === "source") {
+	if (key === 'source') {
 		const src = value as Source;
 		const pos = src.sourceFile?.getLineAndCharacterOfPosition(src.index);
 		return src.sourceFile
@@ -13,7 +14,7 @@ function serialize(key: string, value: unknown) {
 					fileName: relative(cwd, src.sourceFile.fileName),
 					line: pos?.line,
 					ch: pos?.character,
-			  }
+				}
 			: undefined;
 	}
 
@@ -29,10 +30,10 @@ function serialize(key: string, value: unknown) {
 	return value;
 }
 
-export function render(_app: DocGen, output: Output): File[] {
+export function render(_app: Configuration, output: Output): File[] {
 	return [
 		{
-			name: "docs.json",
+			name: 'docs.json',
 			content: JSON.stringify({ modules: output.modules }, serialize, 2),
 		},
 	];

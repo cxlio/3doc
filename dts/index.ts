@@ -53,6 +53,7 @@ export interface BuildOptions {
 	cxlExtensions: boolean;
 	forceExports?: string[];
 	followReferences?: boolean;
+	debug?: boolean;
 }
 
 export interface ParseOptions extends Partial<BuildOptions> {
@@ -1736,7 +1737,7 @@ const Serializer: SerializerMap = {
 
 function setup(
 	{ options, errors, fileNames, projectReferences }: ts.ParsedCommandLine,
-	_dtsOptions?: BuildOptions,
+	dtsOptions: BuildOptions,
 	host?: ts.CompilerHost,
 ) {
 	options.noEmit = true;
@@ -1751,7 +1752,7 @@ function setup(
 	});
 	typeChecker = program.getTypeChecker();
 	const diagnostics = tsLocal.getPreEmitDiagnostics(program);
-	if (diagnostics.length) {
+	if (dtsOptions.debug && diagnostics.length) {
 		console.warn(
 			tsLocal.formatDiagnosticsWithColorAndContext(diagnostics, host),
 		);
@@ -1790,7 +1791,7 @@ function parseModule(symbol: ts.Symbol, from: ts.SourceFile) {
 				const project =
 					originalPath && findSourceFileReference(originalPath);
 				if (project) {
-					buildReference(project.commandLine);
+					buildReference(project.commandLine, currentOptions);
 					const moduleName = normalizeSourceFileName(originalPath);
 					return extraModules?.find(m => m.name === moduleName);
 				}
@@ -1949,15 +1950,15 @@ export function parse(options: ParseOptions): Node[] {
 	return sourceNode.children || extraModules;
 }
 
-function buildProject(config: ts.ParsedCommandLine) {
-	setup(config);
+function buildProject(config: ts.ParsedCommandLine, options: BuildOptions) {
+	setup(config, options);
 	sourceFiles = config.fileNames.flatMap(
 		fp => program.getSourceFile(fp) || [],
 	);
 	sourceFiles.forEach(parseSourceFile);
 }
 
-function buildReference(config: ts.ParsedCommandLine) {
+function buildReference(config: ts.ParsedCommandLine, options: BuildOptions) {
 	const path = (config.options as { configFilePath: string }).configFilePath;
 
 	if (!builtReferences?.includes(path)) {
@@ -1965,7 +1966,7 @@ function buildReference(config: ts.ParsedCommandLine) {
 		const oldTypeChecker = typeChecker;
 
 		builtReferences?.push(path);
-		buildProject(config);
+		buildProject(config, options);
 
 		program = oldProgram;
 		typeChecker = oldTypeChecker;
@@ -1996,10 +1997,11 @@ function buildTsconfig(
 		if (ref.prepend)
 			buildReference(
 				parseTsConfig(tsLocal.resolveProjectReferencePath(ref)),
+				options,
 			);
 	});
 
-	buildProject(config);
+	buildProject(config, options);
 
 	return result;
 }
