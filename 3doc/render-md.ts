@@ -302,7 +302,7 @@ ${value}
 	function renderExtends(node: Summary | string | number) {
 		const extendStr: string[] = [];
 		const type = getTypeSummary(node);
-		if (!type || type.kind !== Kind.ClassType) return;
+		if (type?.kind !== Kind.ClassType) return;
 
 		type.children?.forEach(child => {
 			if (typeof child !== 'object') return;
@@ -320,8 +320,7 @@ ${value}
 		for (const node of type.children) {
 			const nodeType = getTypeSummary(node);
 			if (
-				!nodeType ||
-				nodeType.kind !== Kind.Component ||
+				nodeType?.kind !== Kind.Component ||
 				nodeType.name === 'Component'
 			)
 				break;

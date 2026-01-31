@@ -111,7 +111,7 @@ export function getHref(node: Node, parent?: Node): string {
 	if (hasOwnPage(node)) return getPageName(node);
 
 	const parentHref =
-		node.parent && (!parent || node.parent.name !== parent.name)
+		node.parent && node.parent.name !== parent?.name
 			? getHref(node.parent)
 			: '';
 
