@@ -1,0 +1,17 @@
+name: Generate and publish docs
+
+on:
+    push:
+        branches: [main]
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    pages: write
+    id-token: write
+
+jobs:
+    docs:
+        uses: ./.github/workflows/3doc.yaml
+        with:
+            doc-args: '--rootDir 3doc --tsconfig 3doc/tsconfig.json'
