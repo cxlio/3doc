@@ -14,4 +14,4 @@ jobs:
     docs:
         uses: ./.github/workflows/3doc.yaml
         with:
-            doc-args: '--rootDir 3doc --tsconfig 3doc/tsconfig.json'
+            doc-args: '--rootDir 3doc --tsconfig 3doc/tsconfig.json --outputDir docs/3doc'
