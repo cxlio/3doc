@@ -1,0 +1,40 @@
+name: Publish 3DOC generated documentation to GitHub Pages
+
+on:
+    workflow_call:
+        inputs:
+            node-version:
+                type: string
+                default: '24'
+            doc-args:
+                type: string
+                default: ''
+            out-dir:
+                type: string
+                default: 'docs' # set to the folder 3doc outputs
+
+permissions:
+    contents: read
+    pages: write
+    id-token: write
+
+jobs:
+    build-and-deploy:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ inputs.node-version }}
+                  cache: npm
+
+            - run: npm ci
+
+            - run: npx @cxl/3doc ${{ inputs.doc-args }}
+
+            - uses: actions/configure-pages@v5
+            - uses: actions/upload-pages-artifact@v3
+              with:
+                  path: ${{ inputs.out-dir }}
+            - uses: actions/deploy-pages@v4
