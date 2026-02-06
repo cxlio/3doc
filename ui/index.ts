@@ -8,6 +8,7 @@ export * from './page.js';
 export * from './nav-list.js';
 export * from './item.js';
 export * from './search-page.js';
+export * from './demo-bare.js';
 export * from './demo.js';
 export * from './app.js';
 export * from './page-header.js';

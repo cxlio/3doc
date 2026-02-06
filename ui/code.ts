@@ -38,6 +38,8 @@ component(DocCode, {
 	display: block;
 	padding:16px; border-radius: 8px;
 	${surface('surface-container')}
+	color: var(--hljs-on-surface);
+	background-color: var(--hljs-surface);
 }
 .hljs {
 	white-space: pre-wrap; font: var(--cxl-font-code);
