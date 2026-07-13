@@ -50,6 +50,18 @@ export interface DocsJson extends BuildDocsOptions {
 	extra?: Section[];
 }
 
+type BuildDocsArguments = {
+	-readonly [Key in keyof DocsJson]: DocsJson[Key];
+} & {
+	clean: boolean;
+	debug: boolean;
+	outputDir: string;
+	packageJson: string;
+	rootDir: string;
+	summary: boolean;
+	tsconfig: string;
+};
+
 export type Configuration = DocsJson & {
 	modulePackage: Package;
 	spa: boolean;
@@ -177,7 +189,7 @@ export const Parameters = {
 } as const;
 
 const ENTITIES_REGEX = /[&<"]/g;
-const ENTITIES_MAP = {
+const ENTITIES_MAP: Record<string, string> = {
 	'&': '&amp;',
 	'<': '&lt;',
 	'"': '&quot;',
@@ -186,7 +198,7 @@ const ENTITIES_MAP = {
 export function escape(str: string): string {
 	return str.replace(
 		ENTITIES_REGEX,
-		e => ENTITIES_MAP[e as keyof typeof ENTITIES_MAP],
+		e => ENTITIES_MAP[e] ?? e,
 	);
 }
 
@@ -196,7 +208,7 @@ export function parseExample(value: string): { title: string; value: string } {
 
 		return {
 			title: value.slice(0, newLine).trim().replace('</caption>', ''),
-			value: (value = value.slice(newLine).trim()),
+			value: value.slice(newLine).trim(),
 		};
 	}
 
@@ -252,7 +264,7 @@ export async function buildDocs(
 	const rootDir = resolve(
 		config.rootDir ?? (config.tsconfig ? dirname(config.tsconfig) : ''),
 	);
-	const args = {
+	const args: BuildDocsArguments = {
 		outputDir: './docs',
 		clean: false,
 		debug: false,
@@ -277,7 +289,7 @@ export async function buildDocs(
 		for (const arg in newConfig) {
 			const docsJsonDir = dirname(docsJson);
 			if (arg === 'extra') {
-				(args as DocsJson).extra = (newConfig.extra ?? []).map(
+				args.extra = (newConfig.extra ?? []).map(
 					section => ({
 						...section,
 						items: section.items.map(item => ({
@@ -286,12 +298,16 @@ export async function buildDocs(
 						})),
 					}),
 				);
-			} else if (isArgument(arg))
-				args[arg] = (
-					pathArgs.includes(arg)
-						? resolvePaths(newConfig[arg] as string, docsJsonDir)
-						: newConfig[arg]
-				) as never;
+			} else if (isArgument(arg)) {
+				const value = newConfig[arg];
+				Object.assign(args, {
+					[arg]:
+						pathArgs.includes(arg) &&
+						(typeof value === 'string' || Array.isArray(value))
+							? resolvePaths(value, docsJsonDir)
+							: value,
+				});
+			}
 		}
 	}
 

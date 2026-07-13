@@ -43,9 +43,22 @@ export interface Summary {
 	tsconfig?: string;
 }
 
-const REMOVE = /<\/?[^>]+>/g;
 function removeHtml(str: string) {
-	return str.replace(REMOVE, '').replace(/&gt;/g, '>').replace(/&lt;/g, '<');
+	let result = '';
+	let start = 0;
+	let tagStart = str.indexOf('<');
+
+	while (tagStart !== -1) {
+		const tagEnd = str.indexOf('>', tagStart);
+		if (tagEnd === -1) break;
+		result += str.slice(start, tagStart);
+		start = tagEnd + 1;
+		tagStart = str.indexOf('<', start);
+	}
+
+	return (result + str.slice(start))
+		.replace(/&gt;/g, '>')
+		.replace(/&lt;/g, '<');
 }
 
 function sortByName(a: Summary, b: Summary) {
@@ -363,27 +376,45 @@ export function Signature(node: Node): string {
 	return SignatureText(node);
 }
 
+const STRUCTURED_TYPE_KINDS = new Set([
+	Kind.ObjectType,
+	Kind.FunctionType,
+	Kind.Function,
+	Kind.Method,
+	Kind.TypeUnion,
+	Kind.Interface,
+]);
+
+function isSimpleType(node: Node) {
+	return (
+		Boolean(node.flags & (Flags.External | Flags.DefaultLibrary)) ||
+		!STRUCTURED_TYPE_KINDS.has(node.kind)
+	);
+}
+
+function renderClassType(node: Node): Summary {
+	let children: Summary[] | undefined;
+	node.children?.forEach(child => {
+		if (child.kind !== Kind.Reference) return;
+		(children ??= []).push({
+			kind: Kind.Reference,
+			type: child.type?.id,
+		});
+	});
+	return {
+		kind: node.kind,
+		children,
+		type: node.type?.id,
+	};
+}
+
 function renderType(node: Node): string | Summary {
 	// References contain the type parameters not the referenced node.
 	const typeParameters = node.typeParameters;
 
 	if (node.kind === Kind.Reference && node.type) node = node.type;
 
-	if (node.kind === Kind.ClassType) {
-		let children: Summary[] | undefined;
-		node.children?.forEach(child => {
-			if (child.kind !== Kind.Reference) return;
-			(children ??= []).push({
-				kind: Kind.Reference,
-				type: child.type?.id,
-			});
-		});
-		return {
-			kind: node.kind,
-			children,
-			type: node.type?.id,
-		};
-	}
+	if (node.kind === Kind.ClassType) return renderClassType(node);
 
 	/*	if (node.kind === Kind.TypeUnion) {
 		return node.children?.map(renderType)
@@ -391,17 +422,7 @@ function renderType(node: Node): string | Summary {
 
 	if (node.kind === Kind.BaseType)
 		return `${node.name}${TypeArguments(typeParameters)}`;
-	if (
-		node.flags & Flags.External ||
-		node.flags &
-			Flags.DefaultLibrary /*node.kind !== Kind.ObjectType &&*/ ||
-		(node.kind !== Kind.ObjectType &&
-			node.kind !== Kind.FunctionType &&
-			node.kind !== Kind.Function &&
-			node.kind !== Kind.Method &&
-			node.kind !== Kind.TypeUnion &&
-			node.kind !== Kind.Interface)
-	)
+	if (isSimpleType(node))
 		return removeHtml(
 			`${Type(node)}${
 				typeParameters !== node.typeParameters

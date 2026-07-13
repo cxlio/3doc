@@ -22,6 +22,8 @@ export interface Summary {
 	resolvedType?: string | Summary;
 }
 
+type NodeType = string | number | Summary | undefined;
+
 function sortByName(a: { name: string }, b: { name: string }) {
 	return a.name < b.name ? -1 : 1;
 }
@@ -43,13 +45,13 @@ export function link(node: Summary): string {
 }
 
 export function renderNode(node: Node, all: Node[]) {
-	function getRef(type: string | number | Summary | undefined) {
+	function getRef(type: NodeType) {
 		if (!type || typeof type === 'string') return;
 		if (typeof type === 'number') return all.find(n => n.id === type);
 	}
 
 	function getTypeSummary(
-		type: string | number | Summary | undefined,
+		type: NodeType,
 	): Summary | undefined {
 		if (!type || typeof type === 'string') return;
 

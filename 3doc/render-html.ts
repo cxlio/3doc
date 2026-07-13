@@ -6,7 +6,6 @@ import {
 	Source,
 	//printSignature,
 	DocumentationContent,
-	printNode as _printNode,
 } from '../dts/index.js';
 import type { File } from './index.js';
 import {
@@ -344,7 +343,7 @@ function Example(doc: DocumentationContent) {
 }
 
 function findSymbolByName(name: string) {
-	const [symbolName, _method] = name.split('#');
+	const [symbolName] = name.split('#');
 	return allSymbols.find(s => s.name === symbolName);
 }
 
@@ -374,12 +373,15 @@ function formatContent(text: string) {
 	return text.replace(/\r?\n\r?\n/g, '</p><p>');
 }
 
-const linkRegex = /^\s*([^|]+?)\s*(?:[|\s]\s*(.+))?\s*$/;
-
 function DocLink(value: string) {
-	const linkTag = linkRegex.exec(value);
-	const name = linkTag?.[1] || value;
-	const title = linkTag?.[2];
+	const separator = value.indexOf('|');
+	const [name = value, ...titles] = (separator === -1
+		? value
+		: `${value.slice(0, separator)} ${value.slice(separator + 1)}`
+	)
+		.trim()
+		.split(/\s+/);
+	const title = titles.join(' ') || undefined;
 	const symbol = findSymbolByName(name);
 
 	return symbol ? Link(symbol, title) : ExternalLink(name, title);
@@ -575,8 +577,8 @@ function getEnumMembers(node: Node, children: Node[]) {
 		{
 			kind: Kind.Property,
 			unique: {},
-			index: children.sort(sortNode).map(c => MemberIndexLink(c, node)),
-			body: children.sort(sortByValue).map(MemberCard),
+			index: children.toSorted(sortNode).map(c => MemberIndexLink(c, node)),
+			body: children.toSorted(sortByValue).map(MemberCard),
 		},
 	];
 }
@@ -622,7 +624,7 @@ function getMemberGroups(node: Node, indexOnly = false, sort = true) {
 
 	if (node.kind === Kind.Enum) return getEnumMembers(node, children);
 
-	children.sort(sortNode).forEach(c => {
+	children.toSorted(sortNode).forEach(c => {
 		if (
 			((node.kind === Kind.Module || node.kind === Kind.Namespace) &&
 				!declarationFilter(c)) ||
@@ -646,7 +648,7 @@ function getMemberGroups(node: Node, indexOnly = false, sort = true) {
 	});
 
 	return sort
-		? result.sort((a, b) =>
+		? result.toSorted((a, b) =>
 				kindToString(a.kind) > kindToString(b.kind) ? 1 : -1,
 			)
 		: result;
@@ -783,8 +785,8 @@ function ModuleNavbar(node: Node) {
 	return (
 		`${Item(`<i>${moduleName}</i>`, href)}` +
 		(node.children.length
-			? node.children
-					.sort(sortNode)
+				? node.children
+						.toSorted(sortNode)
 					.map(c => {
 						if (
 							declarationFilter(c) &&
@@ -842,7 +844,7 @@ function findOtherVersions(outDir: string, currentVersion: string) {
 				d !== currentVersion &&
 				statSync(`${outDir}/${d}`).isDirectory(),
 		);
-	} catch (e) {
+	} catch {
 		return [];
 	}
 }
@@ -854,7 +856,7 @@ function Navbar(_pkg: Package) {
 			<c-icon name="code"></c-icon>API Reference
 		</c-nav-dropdown>
 		<c-nav-target>
-		${modules.sort(sortNode).map(ModuleNavbar).join('')}
+			${modules.toSorted(sortNode).map(ModuleNavbar).join('')}
 		</c-nav-target>
 		</nav>`;
 }
@@ -982,7 +984,7 @@ function Markdown(content: string, inline = false, allowAllHtml = false) {
 	};
 
 	const rules = md.renderer.rules;
-	const map = {
+	const map: Record<string, string> = {
 		h1: 'h4',
 		h2: 'h5',
 		h3: 'h6',
@@ -990,7 +992,7 @@ function Markdown(content: string, inline = false, allowAllHtml = false) {
 		h5: 'h6',
 	};
 	rules.heading_open = (tokens, idx) =>
-		`<c-t font="${map[tokens[idx]?.tag as keyof typeof map]}">`;
+		`<c-t font="${map[tokens[idx]?.tag ?? '']}">`;
 	rules.heading_close = () => `</c-t>`;
 	rules.code_block = (tokens, idx) => Code(tokens[idx]?.content ?? '');
 	rules.fence = (tokens, idx) =>
@@ -1059,15 +1061,17 @@ function initRuntimeConfig(app: Configuration) {
 		spa: application.spa,
 		symbols: allSymbols
 			.filter(s => s.flags & Flags.Export)
-			.sort(sortNode)
-			.map(s => ({
-				name: s.name,
-				tagName: s.docs?.tagName,
-				icon: s.docs?.content?.find(c => c.tag === 'icon')
-					?.value as string,
-				kind: s.kind,
-				href: getHref(s),
-			})),
+			.toSorted(sortNode)
+			.map(s => {
+				const icon = s.docs?.content?.find(c => c.tag === 'icon')?.value;
+				return {
+					name: s.name,
+					tagName: s.docs?.tagName,
+					icon: typeof icon === 'string' ? icon : undefined,
+					kind: s.kind,
+					href: getHref(s),
+				};
+			}),
 	};
 
 	return scripts;
@@ -1107,10 +1111,11 @@ export function render(app: Configuration, output: Output): File[] {
 			: []);
 	modules = [];
 
-	let needsIndex = true as boolean;
+	const hasIndex = extraDocs.some(section =>
+		section.items.some(item => item.index),
+	);
 	const extraFiles = extraDocs.flatMap(section => {
 		return section.items.map(f => {
-			if (f.index) needsIndex = false;
 			return renderExtraFile(f);
 		});
 	});
@@ -1199,7 +1204,7 @@ export function render(app: Configuration, output: Output): File[] {
 		doc.content = header + doc.content + footer;
 	});
 
-	if (needsIndex) {
+	if (!hasIndex) {
 		const readme = readmePath ? readFileSync(readmePath, 'utf8') : '';
 		const content = readme ? Markdown(readme) : '';
 
