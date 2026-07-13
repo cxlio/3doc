@@ -1,6 +1,6 @@
 import { Test, spec } from '@cxl/spec';
-import { SignatureText } from './render-summary.js';
-import { Kind, Node, parse as _parse } from '../dts/index.js';
+import { renderJson, SignatureText } from './render-summary.js';
+import { Kind, Node, Output, parse as _parse } from '../dts/index.js';
 
 export function node(p: Partial<Node>): Node {
 	return { name: 'A', kind: Kind.Unknown, flags: 0, ...p };
@@ -66,6 +66,26 @@ const tests: Test = spec('docgen', s => {
 		});
 
 		it.test('TypeAlias', it => {
+			it.should('preserve indexed access types', a => {
+				const nodes = parse({
+					source: `
+						interface ShellApi { git(...args: string[]): Promise<string>; }
+						export type Git = ShellApi['git'];
+					`,
+				});
+				const summary = renderJson({
+					index: Object.fromEntries(nodes.map(n => [n.id, n])),
+				} as Pick<Output, 'index'> as Output);
+				const git = summary.index.find(n => n.name === 'Git');
+
+				if (typeof git?.type !== 'object')
+					throw new Error('Expected structured indexed access type.');
+
+				a.equal(git.type.kind, Kind.IndexedType);
+				a.equal(git.type.children?.[0]?.name, "'git'");
+				a.equal(git.type.children?.[1]?.name, 'ShellApi');
+			});
+
 			/*it.should('render union', a => {
 				const [A] = parse({
 					source: `type A<T> = { [P in keyof T]: T[P]; } & { name: string };`,

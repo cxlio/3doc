@@ -489,7 +489,9 @@ function renderNode(node: Node): Summary {
 	let type: string | number | Summary | undefined;
 
 	if (typeN) {
-		if (
+		if (typeN.kind === Kind.IndexedType) {
+			type = renderNode(typeN);
+		} else if (
 			typeN.kind === Kind.Reference &&
 			typeN.type?.id !== undefined &&
 			typeN.type.flags &&
