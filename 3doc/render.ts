@@ -9,6 +9,7 @@ import {
 	buildConfig,
 } from '../dts/index.js';
 import type { File } from './index.js';
+import { removeOlderPatchVersions } from './version.js';
 
 export interface ExtraDocumentation {
 	title: string;
@@ -364,4 +365,6 @@ export async function buildDocs(
 			theme.render(docgenConfig, json).map(f => writeFile(f, outputDir)),
 		);
 	}
+
+	await removeOlderPatchVersions(outputDir, pkgRepo.version);
 }

@@ -16,7 +16,7 @@ import {
 } from './localization.js';
 import type { Package } from '@cxl/program';
 import { join, relative } from 'path';
-import { existsSync, readFileSync, readdirSync, statSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import MarkdownIt from 'markdown-it';
 import {
 	ExtraDocumentation,
@@ -25,6 +25,7 @@ import {
 	parseExample,
 	RuntimeConfig,
 } from './render.js';
+import { findOtherVersions } from './version.js';
 
 interface Group {
 	kind: Kind;
@@ -835,18 +836,6 @@ function Extra(docs: Section[]) {
 
 function NavbarExtra() {
 	return `${Extra(extraDocs)}`;
-}
-
-function findOtherVersions(outDir: string, currentVersion: string) {
-	try {
-		return readdirSync(outDir).filter(
-			d =>
-				d !== currentVersion &&
-				statSync(`${outDir}/${d}`).isDirectory(),
-		);
-	} catch {
-		return [];
-	}
 }
 
 function Navbar(_pkg: Package) {

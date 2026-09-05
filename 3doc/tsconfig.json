@@ -14,6 +14,7 @@
 		"render-json.ts",
 		"render-summary.ts",
 		"render-md.ts",
-		"localization.ts"
+		"localization.ts",
+		"version.ts"
 	]
 }
