@@ -1,5 +1,6 @@
 import { relative } from 'path';
-import { Kind, Output, Node, Source } from '../dts/index.js';
+import { Kind } from '../dts/index.js';
+import type { Output, Node, Source } from '../dts/index.js';
 import type { File } from './index.js';
 import type { Configuration } from './render.js';
 

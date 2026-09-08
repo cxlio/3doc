@@ -14,4 +14,3 @@ Client-side UI components and runtime for 3doc.
 ## Installation
 
 	npm install @cxl/3doc.ui
-

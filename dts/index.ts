@@ -1,16 +1,10 @@
 import { relative, resolve } from 'path';
-import { createRequire } from 'module';
+import * as tsLocal from 'typescript';
 
 import { Kind, Flags } from './enum.js';
 
 import type * as ts from 'typescript';
 
-const require = createRequire(import.meta.dirname);
-const tsPath = require.resolve('typescript', {
-	paths: ['.', import.meta.dirname],
-});
-/*eslint @typescript-eslint/no-require-imports:off */
-const tsLocal = require(tsPath) as typeof import('typescript');
 const { getParsedCommandLineOfConfigFile, NodeFlags, sys } = tsLocal;
 
 const SK = tsLocal.SyntaxKind;
@@ -26,6 +20,7 @@ declare module 'typescript' {
 		$$internal?: boolean;
 		$$resolvedType?: boolean;
 		jsDoc?: ts.JSDoc[];
+		name?: ts.Node;
 	}
 
 	interface Type {
@@ -36,6 +31,17 @@ declare module 'typescript' {
 		[dtsNode]?: dtsNode;
 		$$moduleResult?: dtsNode;
 		$$fqn?: string;
+		parent?: ts.Symbol;
+	}
+
+	interface SourceFile {
+		moduleName?: string;
+		originalFileName?: string;
+		path?: string;
+	}
+
+	interface CompilerOptions {
+		configFilePath?: string;
 	}
 }
 
@@ -521,24 +527,24 @@ function createNodeId(_tsNode: ts.Node, _node?: Node) {
 	return currentId++;
 }
 
+function getNodeSourceFile(node: ts.Node) {
+	return node.flags & NodeFlags.Synthesized ? undefined : node.getSourceFile();
+}
+
 function getNodeSource(node: ts.Node): Source | undefined {
 	const root = currentOptions?.rootDir || process.cwd();
-	const sourceFile = node.getSourceFile() as ts.SourceFile | null;
-	const result = sourceFile
-		? {
-				name: relative(root, sourceFile.fileName),
-				index: node.pos,
-				node,
-				tsconfig: (
-					program.getCompilerOptions() as { configFilePath: string }
-				).configFilePath,
-			}
-		: undefined;
-	if (result)
-		Object.defineProperty(result, 'sourceFile', {
-			value: sourceFile,
-			enumerable: false,
-		});
+	const sourceFile = getNodeSourceFile(node);
+	if (!sourceFile) return;
+	const result = {
+		name: relative(root, sourceFile.fileName),
+		index: node.pos,
+		node,
+		tsconfig: program.getCompilerOptions().configFilePath,
+	};
+	Object.defineProperty(result, 'sourceFile', {
+		value: sourceFile,
+		enumerable: false,
+	});
 	return result;
 }
 
@@ -546,13 +552,10 @@ function getNodeName(node: ts.Node): string {
 	if (tsLocal.isSourceFile(node)) {
 		return normalizeSourceFileName(node.fileName);
 	}
-	if ((node as ts.TypeParameterDeclaration | null)?.name)
-		node = (node as ts.TypeParameterDeclaration).name;
-	else if ((node as ts.TypeReferenceNode | null)?.typeName)
-		node = (node as ts.TypeReferenceNode).typeName;
+	if (tsLocal.isTypeReferenceNode(node)) node = node.typeName;
+	else if (node.name) node = node.name;
 
-	if ((node as ts.Identifier | null)?.escapedText !== undefined)
-		return (node as ts.Identifier).escapedText as string;
+	if (tsLocal.isIdentifier(node)) return node.text;
 
 	if (node.pos !== -1 && tsLocal.isStringLiteral(node)) return node.getText();
 
@@ -568,31 +571,31 @@ function getNodeName(node: ts.Node): string {
 		);
 	}
 
-	if ((node as ts.StringLiteral).text) return (node as ts.StringLiteral).text;
+	if (tsLocal.isStringLiteral(node)) return node.text;
 
 	if (tsLocal.isComputedPropertyName(node) || tsLocal.isQualifiedName(node))
-		return node.pos === -1
-			? (node as unknown as ts.StringLiteral).text || ''
-			: node.getText();
+		return node.pos === -1 ? '' : node.getText();
 
-	const moduleName = (node as ts.SourceFile).moduleName;
-	return moduleName || '';
+	return tsLocal.isSourceFile(node) ? node.moduleName || '' : '';
 }
 
 function createNode(node: ts.Node, extra?: Partial<Node>): Node {
-	const result: Partial<Node> = node[dtsNode] || {};
+	const result: Node = node[dtsNode] || {
+		name: '',
+		kind: extra?.kind ?? getKind(node),
+		flags: getFlags(node),
+	};
 
 	result.source ??= getNodeSource(node);
-	result.kind = extra?.kind ?? result.kind ?? getKind(node);
+	if (extra?.kind !== undefined) result.kind = extra.kind;
 	result.name ||= extra?.name || getNodeName(node);
-	result.flags ??= getFlags(node);
 
-	const docs = getNodeDocs(node, result as Node);
+	const docs = getNodeDocs(node, result);
 	if (docs) result.docs = docs;
 
 	if (extra) Object.assign(result, extra);
 
-	return (node[dtsNode] = result as Node);
+	return (node[dtsNode] = result);
 }
 
 function getNodeFromDeclaration(symbol: ts.Symbol, node: ts.Node): Node {
@@ -644,28 +647,28 @@ function serializeExpression(node: ts.Expression) {
 }
 
 function hasInternalAnnotation(node: ts.Node, text: string) {
-	let parent: ts.Node | undefined = node;
 	if (node.kind === SK.ModuleDeclaration) return false;
-	do {
+	for (let parent = node; ; parent = parent.parent) {
 		if (parent.$$internal) return true;
-		else if (parent.$$internal === false) continue;
-
-		const ranges = tsLocal.getLeadingCommentRanges(text, parent.pos);
-		if (ranges)
-			for (const r of ranges) {
-				const rangeText = text.substring(r.pos, r.end);
-				if (rangeText.indexOf('@internal') !== -1) {
-					return (parent.$$internal = true);
+		if (parent.$$internal !== false) {
+			const ranges = tsLocal.getLeadingCommentRanges(text, parent.pos);
+			if (ranges)
+				for (const r of ranges) {
+					const rangeText = text.substring(r.pos, r.end);
+					if (rangeText.indexOf('@internal') !== -1) {
+						return (parent.$$internal = true);
+					}
 				}
 			}
-	} while ((parent = parent.parent as ts.Node | undefined));
+		if (tsLocal.isSourceFile(parent)) break;
+	}
 
 	return (node.$$internal = false);
 }
 
 function getDeclarationFlags(node: ts.Declaration, flags: ts.ModifierFlags) {
 	const tsFlags = tsLocal.ModifierFlags;
-	const sourceFile = node.getSourceFile() as ts.SourceFile | null;
+	const sourceFile = getNodeSourceFile(node);
 	const isDecl = sourceFile?.isDeclarationFile;
 	let result = 0;
 
@@ -694,12 +697,17 @@ function getDeclarationFlags(node: ts.Declaration, flags: ts.ModifierFlags) {
 function getFlags(node: ts.Node) {
 	let result = 0;
 
-	if ((node as ts.PropertyDeclaration).questionToken)
+	if (
+		(tsLocal.isParameter(node) ||
+			tsLocal.isPropertyDeclaration(node) ||
+			tsLocal.isPropertySignature(node) ||
+			tsLocal.isMethodDeclaration(node) ||
+			tsLocal.isMethodSignature(node)) &&
+		node.questionToken
+	)
 		result |= Flags.Optional;
 
-	const sourceFile = (
-		tsLocal.isSourceFile(node) ? node : node.getSourceFile()
-	) as ts.SourceFile | null;
+	const sourceFile = tsLocal.isSourceFile(node) ? node : getNodeSourceFile(node);
 
 	if (sourceFile) {
 		if (hasInternalAnnotation(node, sourceFile.getFullText()))
@@ -758,11 +766,15 @@ function parseJsDocComment(comment: ts.JSDoc['comment']) {
 	);
 }
 
-const jsDocRemoveStar = /^\s*\*\s/gm;
-
 function getJsDocText(doc: ts.JSDocTag | ts.JSDocComment): string {
-	const text = doc.getText().replace(jsDocRemoveStar, '');
-	return text;
+	return doc
+		.getText()
+		.split('\n')
+		.map(line => {
+			const trimmed = line.trimStart();
+			return trimmed.startsWith('* ') ? trimmed.slice(2) : line;
+		})
+		.join('\n');
 }
 
 function mergeJsDocComment(content: DocumentationContent[], doc: ts.JSDocTag) {
@@ -777,6 +789,61 @@ function mergeJsDocComment(content: DocumentationContent[], doc: ts.JSDocTag) {
 	} else content.push({ value: newContent });
 }
 
+function isInvalidJsDocTag(
+	doc: ts.JSDocTag,
+	tag: string | undefined,
+	content: DocumentationContent[],
+) {
+	return Boolean(
+		doc.comment &&
+		tag &&
+		!currentOptions?.customJsDocTags?.includes(tag) &&
+		tag !== tag.toLowerCase() &&
+		content.length > 0,
+	);
+}
+
+function applyJsDocMetadata(
+	result: Node,
+	docs: Documentation,
+	tag: string | undefined,
+) {
+	if (tag === 'deprecated') result.flags |= Flags.Deprecated;
+	if (tag === 'beta') docs.beta = true;
+	if (tag === 'alpha') docs.alpha = true;
+	if (!currentOptions?.cxlExtensions) return;
+	if (tag === 'attribute') result.kind = Kind.Attribute;
+	else if (tag === 'event') result.kind = Kind.Event;
+}
+
+function processJsDocTag(
+	node: ts.Node,
+	result: Node,
+	docs: Documentation,
+	content: DocumentationContent[],
+	doc: ts.JSDocTag,
+) {
+	const tag = doc.tagName.text === 'description' ? undefined : doc.tagName.text;
+	const name = tsLocal.isJSDocSeeTag(doc) ? doc.name?.getText() : undefined;
+	let value = doc.comment ? parseJsDocComment(doc.comment) : name;
+	if (currentOptions?.cxlExtensions && tag === 'tagName') {
+		docs.tagName = String(value);
+		return;
+	}
+	if (isInvalidJsDocTag(doc, tag, content)) {
+		mergeJsDocComment(content, doc);
+		return;
+	}
+	applyJsDocMetadata(result, docs, tag);
+	if (tag === 'see' && doc.comment === '*') value = name;
+
+	if (value && !(tag === 'param' && node.kind !== SK.Parameter))
+		content.push({
+			tag: tag === 'desc' || tag === 'description' ? undefined : tag,
+			value,
+		});
+}
+
 function getNodeDocs(node: ts.Node, result: Node) {
 	const jsDoc = node.jsDoc;
 	const content: DocumentationContent[] = [];
@@ -786,47 +853,9 @@ function getNodeDocs(node: ts.Node, result: Node) {
 		const value = parseJsDocComment(doc.comment);
 		if (value) content.push({ value });
 	});
-	tsLocal.getJSDocTags(node).forEach(doc => {
-		const tag =
-			doc.tagName.escapedText === 'description'
-				? undefined
-				: (doc.tagName.escapedText as string);
-
-		const name = (doc as ts.JSDocSeeTag).name?.getText();
-		let value = doc.comment ? parseJsDocComment(doc.comment) : name;
-
-		if (currentOptions?.cxlExtensions && tag === 'tagName') {
-			docs.tagName = String(value);
-			return;
-		}
-
-		// Invalid tag, append to previous content
-		if (
-			doc.comment &&
-			tag &&
-			!currentOptions?.customJsDocTags?.includes(tag) &&
-			tag !== tag.toLowerCase() &&
-			content.length > 0
-		) {
-			mergeJsDocComment(content, doc);
-			return;
-		}
-
-		if (tag === 'deprecated') result.flags |= Flags.Deprecated;
-		if (tag === 'see' && doc.comment === '*') value = name;
-		if (tag === 'beta') docs.beta = true;
-		if (tag === 'alpha') docs.alpha = true;
-		if (currentOptions?.cxlExtensions) {
-			if (tag === 'attribute') result.kind = Kind.Attribute;
-			else if (tag === 'event') result.kind = Kind.Event;
-		}
-
-		if (value && !(tag === 'param' && node.kind !== SK.Parameter))
-			content.push({
-				tag: tag === 'desc' || tag === 'description' ? undefined : tag,
-				value,
-			});
-	});
+	tsLocal
+		.getJSDocTags(node)
+		.forEach(doc => processJsDocTag(node, result, docs, content, doc));
 
 	return content.length ? docs : undefined;
 }
@@ -843,19 +872,36 @@ function serializeDeclaration(node: ts.Declaration): Node {
 
 	const id = result.id;
 
-	const typeParameters = (node as ts.ClassLikeDeclaration).typeParameters;
+	const typeParameters =
+		tsLocal.isClassLike(node) ||
+		tsLocal.isInterfaceDeclaration(node) ||
+		tsLocal.isTypeAliasDeclaration(node) ||
+		tsLocal.isFunctionLike(node)
+			? node.typeParameters
+			: undefined;
 	if (typeParameters) result.typeParameters = typeParameters.map(serialize);
 
 	if (tsLocal.isEnumMember(node))
 		result.value = JSON.stringify(typeChecker.getConstantValue(node));
-	else if ((node as ts.PropertyAssignment | null)?.initializer)
-		result.value = serializeExpression(
-			(node as ts.PropertyAssignment).initializer,
-		);
+	else {
+		const initializer = getInitializer(node);
+		if (initializer) result.value = serializeExpression(initializer);
+	}
 
 	if (id) currentIndex[id] = result;
 
 	return result;
+}
+
+function getInitializer(node: ts.Declaration) {
+	if (
+		tsLocal.isVariableDeclaration(node) ||
+		tsLocal.isParameter(node) ||
+		tsLocal.isPropertyDeclaration(node) ||
+		tsLocal.isPropertyAssignment(node) ||
+		tsLocal.isBindingElement(node)
+	)
+		return node.initializer;
 }
 
 function serializeTypeParameter(node: ts.TypeParameterDeclaration) {
@@ -875,9 +921,9 @@ function serializeUnknownSymbol(symbol: ts.Symbol): Node {
 }
 
 function serializeParameter(symbol: ts.Symbol) {
-	const node = symbol.valueDeclaration as ts.ParameterDeclaration | undefined;
+	const node = symbol.valueDeclaration;
 
-	if (!node) return serializeUnknownSymbol(symbol);
+	if (!node || !tsLocal.isParameter(node)) return serializeUnknownSymbol(symbol);
 
 	const result = serializeDeclarationWithType(node);
 	if (!result.name) result.name = node.name.getText();
@@ -931,7 +977,26 @@ function isReferenceType(type: ts.Type) {
 		type.flags & TF.UniqueESSymbol ||
 		type.isClassOrInterface() ||
 		type.isTypeParameter() ||
-		(type as ts.ObjectType).objectFlags & tsLocal.ObjectFlags.Reference
+		isTypeReference(type)
+	);
+}
+
+function isIndexType(type: ts.Type): type is ts.IndexType {
+	return Boolean(type.flags & TF.Index);
+}
+
+function isIndexedAccessType(type: ts.Type): type is ts.IndexedAccessType {
+	return Boolean(type.flags & TF.IndexedAccess);
+}
+
+function isObjectType(type: ts.Type): type is ts.ObjectType {
+	return Boolean(type.flags & TF.Object);
+}
+
+function isTypeReference(type: ts.Type): type is ts.TypeReference {
+	return (
+		isObjectType(type) &&
+		Boolean(type.objectFlags & tsLocal.ObjectFlags.Reference)
 	);
 }
 
@@ -971,7 +1036,7 @@ function serializeKeyofType(type: ts.IndexType): Node {
 		type: serializeType(type.type),
 		resolvedType: getResolvedType(type),
 		flags: 0,
-	} as Node;
+	};
 }
 
 function serializeLiteralType(type: ts.Type, baseType: ts.Type): Node {
@@ -1003,15 +1068,10 @@ function serializeTypeObject(type: ts.ObjectType): Node {
 }
 
 function isArrayType(type: ts.Type) {
-	return (
-		typeChecker as unknown as { isArrayType: (type: ts.Type) => boolean }
-	).isArrayType(type);
+	return typeChecker.isArrayType(type);
 }
 
-function serializeType(type: ts.Type): Node {
-	if (type.aliasSymbol)
-		return getSymbolReference(type.aliasSymbol, type.aliasTypeArguments);
-
+function serializeIntrinsicType(type: ts.Type) {
 	if (type.flags & TF.Any) return AnyType;
 	if (type.flags & TF.Unknown) return UnknownType;
 	if (type.flags & TF.Void) return VoidType;
@@ -1022,24 +1082,43 @@ function serializeType(type: ts.Type): Node {
 	if (type.flags & TF.String) return StringType;
 	if (type.flags & TF.Undefined) return UndefinedType;
 	if (type.flags & TF.Never) return NeverType;
-	if (type.flags & TF.Index) return serializeKeyofType(type as ts.IndexType);
-	if (type.flags & TF.IndexedAccess)
-		return serializeIndexedAccessType(type as ts.IndexedAccessType);
+}
 
-	if (isArrayType(type)) return serializeTypeObject(type as ts.ObjectType);
+function getTypeArguments(type: ts.Type) {
+	return isTypeReference(type)
+		? typeChecker.getTypeArguments(type)
+		: undefined;
+}
 
-	const typeSymbol = type.symbol as ts.Symbol | null;
+function getTypeSymbol(type: ts.Type): ts.Symbol | undefined {
+	return Object.prototype.hasOwnProperty.call(type, 'symbol')
+		? type.symbol
+		: undefined;
+}
+
+function serializeType(type: ts.Type): Node {
+	if (type.aliasSymbol)
+		return getSymbolReference(type.aliasSymbol, type.aliasTypeArguments);
+
+	const intrinsic = serializeIntrinsicType(type);
+	if (intrinsic) return intrinsic;
+	if (isIndexType(type)) return serializeKeyofType(type);
+	if (isIndexedAccessType(type)) return serializeIndexedAccessType(type);
+
+	if (isObjectType(type) && isArrayType(type)) return serializeTypeObject(type);
+
+	const typeSymbol = getTypeSymbol(type);
 
 	if (typeSymbol && typeSymbol.flags & tsLocal.SymbolFlags.Namespace) {
-		const result = getSymbolReference(type.symbol);
+		const result = getSymbolReference(typeSymbol);
 		result.kind = Kind.ImportType;
 		return result;
 	}
 
 	if (typeSymbol && isReferenceType(type))
 		return getSymbolReference(
-			type.symbol,
-			typeChecker.getTypeArguments(type as ts.TypeReference),
+			typeSymbol,
+			getTypeArguments(type),
 		);
 
 	if (type.flags & TF.Literal || type.flags & TF.TemplateLiteral) {
@@ -1062,10 +1141,9 @@ function serializeType(type: ts.Type): Node {
 			children: type.types.map(serializeType),
 		};
 
-	if (type.flags & TF.Object)
-		return serializeTypeObject(type as ts.ObjectType);
+	if (isObjectType(type)) return serializeTypeObject(type);
 
-	if ('symbol' in type) return serializeSymbol(type.symbol);
+	if (typeSymbol) return serializeSymbol(typeSymbol);
 
 	return {
 		name: typeChecker.typeToString(type),
@@ -1120,23 +1198,31 @@ function serializeArray(node: ts.ArrayTypeNode) {
 	return result;
 }
 
+function isIdentifierCall(
+	expression: ts.Expression,
+): expression is ts.CallExpression & { expression: ts.Identifier } {
+	return (
+		tsLocal.isCallExpression(expression) &&
+		tsLocal.isIdentifier(expression.expression)
+	);
+}
+
 function getCxlDecorator(node: ts.Declaration, name: string) {
 	if (!tsLocal.canHaveDecorators(node)) return undefined;
 	const decorators = tsLocal.getDecorators(node);
-	return decorators?.find(
-		deco =>
-			tsLocal.isCallExpression(deco.expression) &&
-			tsLocal.isIdentifier(deco.expression.expression) &&
-			(deco.expression.expression.escapedText as string).endsWith(name),
-	);
+	return decorators
+		?.map(decorator => decorator.expression)
+		.filter(isIdentifierCall)
+		.find(
+			expression =>
+				expression.expression.text.endsWith(name),
+		);
 }
 
 function isCxlAttribute(node: ts.Declaration, result: Node) {
 	const deco = getCxlDecorator(node, 'Attribute');
-	if (deco) {
-		const text = (
-			(deco.expression as ts.CallExpression).expression as ts.Identifier
-		).escapedText;
+	if (deco && isIdentifierCall(deco)) {
+		const text = deco.expression.text;
 		result.kind = text === 'EventAttribute' ? Kind.Event : Kind.Attribute;
 	}
 }
@@ -1147,9 +1233,9 @@ function getCxlRole(node: ts.CallExpression): string {
 }
 
 function findBaseComponent(node: ts.ClassDeclaration) {
-	let type = typeChecker.getTypeAtLocation(node) as ts.Type | undefined;
+	let type = typeChecker.getTypeAtLocation(node);
 
-	while (type) {
+	while (true) {
 		const decl: ts.Declaration | undefined = type.symbol.valueDeclaration;
 		if (!decl || !tsLocal.isClassDeclaration(decl)) return false;
 
@@ -1175,7 +1261,7 @@ function getCxlClassMeta(
 	result: Node,
 ): boolean {
 	const augment = getCxlDecorator(node, 'Augment');
-	const args = (augment?.expression as ts.CallExpression | null)?.arguments;
+	const args = augment?.arguments;
 	const docs: Documentation = result.docs || {};
 	if (augment || (symbol && findBaseComponent(node)))
 		result.kind = Kind.Component;
@@ -1198,7 +1284,7 @@ function getCxlClassMeta(
 			else if (
 				tsLocal.isCallExpression(arg) &&
 				tsLocal.isIdentifier(arg.expression) &&
-				arg.expression.escapedText === 'role'
+				arg.expression.text === 'role'
 			)
 				docs.role = getCxlRole(arg);
 		});
@@ -1223,8 +1309,23 @@ function serializeDeclarationWithType(node: ts.Declaration): Node {
 	if (currentOptions?.cxlExtensions) isCxlAttribute(node, result);
 
 	if (!result.type) {
-		const nodeType = (node as ts.VariableDeclaration).type;
-		if (nodeType) result.type = serialize(nodeType);
+		const initializer = tsLocal.isVariableDeclaration(node)
+			? node.initializer
+			: undefined;
+		const expression =
+			initializer && tsLocal.isAwaitExpression(initializer)
+				? initializer.expression
+				: initializer;
+		const importArgument =
+			expression &&
+			tsLocal.isCallExpression(expression) &&
+			expression.expression.kind === SK.ImportKeyword
+				? expression.arguments[0]
+				: undefined;
+		const nodeType = getDeclarationType(node);
+		if (importArgument)
+			result.type = createNode(importArgument, { kind: Kind.ImportType });
+		else if (nodeType) result.type = serialize(nodeType);
 		else if (
 			tsLocal.isFunctionDeclaration(node) ||
 			tsLocal.isMethodDeclaration(node)
@@ -1247,6 +1348,18 @@ function serializeDeclarationWithType(node: ts.Declaration): Node {
 	}
 
 	return result;
+}
+
+function getDeclarationType(node: ts.Declaration) {
+	if (
+		tsLocal.isVariableDeclaration(node) ||
+		tsLocal.isParameter(node) ||
+		tsLocal.isPropertyDeclaration(node) ||
+		tsLocal.isPropertySignature(node) ||
+		tsLocal.isTypeAliasDeclaration(node) ||
+		tsLocal.isParenthesizedTypeNode(node)
+	)
+		return node.type;
 }
 
 function pushChildren(parent: Node, nodes: Node[]) {
@@ -1287,7 +1400,7 @@ function getSymbolFullyQualifiedName(symbol: ts.Symbol) {
 
 	const decl = symbol.getDeclarations()?.[0];
 	const sourceFile = decl?.getSourceFile();
-	const path = (sourceFile as unknown as { path: string } | undefined)?.path;
+	const path = sourceFile?.path;
 	if (path) return (symbol.$$fqn = `${path}.${symbol.getName()}`);
 
 	return (symbol.$$fqn = typeChecker.getFullyQualifiedName(symbol));
@@ -1310,104 +1423,97 @@ function findExport(symbol?: ts.Symbol) {
 	return existing?.source ? existing : undefined;
 }
 
+function getMergedInterfaceResult(
+	node: ts.InterfaceDeclaration,
+	symbol: ts.Symbol,
+) {
+	if (symbol.flags & tsLocal.SymbolFlags.Class) return;
+	let result = symbol[dtsNode];
+	const declaration = symbol.declarations?.find(decl => decl[dtsNode]);
+	if (!result && declaration) result = serializeDeclaration(declaration);
+	result ??= findExport(symbol);
+	if (
+		result &&
+		!(result.flags & Flags.Export) &&
+		tsLocal.getCombinedModifierFlags(node) & tsLocal.ModifierFlags.Export
+	)
+		result.flags |= Flags.Export;
+	symbol[dtsNode] ??= result;
+	return result;
+}
+
+function addConstructorProperties(result: Node) {
+	for (const member of result.children ?? [])
+		if (member.kind === Kind.Constructor)
+			for (const parameter of member.parameters ?? [])
+				if (parameter.kind === Kind.Property)
+					pushChildren(result, [parameter]);
+}
+
+function mergeClassDeclaration(
+	node: ts.ClassDeclaration | ts.InterfaceDeclaration,
+	symbol: ts.Symbol | undefined,
+	result: Node,
+) {
+	if (
+		!symbol ||
+		!tsLocal.isInterfaceDeclaration(node) ||
+		!(symbol.flags & tsLocal.SymbolFlags.Class)
+	)
+		return;
+	const declaration = symbol.declarations?.[0] || symbol.valueDeclaration;
+	result.flags |= Flags.DeclarationMerge;
+	if (result.children && declaration)
+		pushChildren(
+			getNodeFromDeclaration(symbol, declaration),
+			result.children.map(child => ({ ...child })),
+		);
+}
+
+function addHeritage(result: Node, clauses: ts.NodeArray<ts.HeritageClause>) {
+	const type: Node = {
+		flags: 0,
+		kind: Kind.ClassType,
+		name: '',
+		type: result,
+	};
+	result.type = type;
+	clauses.forEach(clause => pushChildren(type, clause.types.map(serialize)));
+	for (const child of type.children ?? [])
+		if (child.kind === Kind.Reference && child.type) {
+			child.type.extendedBy ??= [];
+			child.type.extendedBy.push({
+				name: result.name,
+				type: result,
+				kind: Kind.Reference,
+				flags: 0,
+			});
+		}
+}
+
 function serializeClass(node: ts.ClassDeclaration | ts.InterfaceDeclaration) {
 	const symbol =
 		typeChecker.getSymbolAtLocation(node) ||
 		(node.name && typeChecker.getSymbolAtLocation(node.name));
-
-	let result: Node | undefined;
-
-	if (
-		node.kind === SK.InterfaceDeclaration &&
-		symbol &&
-		!(symbol.flags & tsLocal.SymbolFlags.Class)
-	) {
-		result = symbol[dtsNode];
-
-		if (!result && symbol.declarations) {
-			const decl = symbol.declarations.find(decl => decl[dtsNode]);
-			// Ensure interface node is initialized
-			if (decl) result = serializeDeclaration(decl);
-		}
-
-		result ??= findExport(symbol);
-
-		// When working with merged interface declarations, the export modifier flag
-		// needs to be rechecked if the result node was created in a different file than the exporting one.
-		if (
-			result &&
-			!(result.flags & Flags.Export) &&
-			tsLocal.getCombinedModifierFlags(node) &
-				tsLocal.ModifierFlags.Export
-		)
-			result.flags |= Flags.Export;
-
-		symbol[dtsNode] ??= result;
-	}
-
+	let result =
+		tsLocal.isInterfaceDeclaration(node) && symbol
+			? getMergedInterfaceResult(node, symbol)
+			: undefined;
 	result ??= serializeDeclaration(node);
-
-	if (!result.children || node.kind === SK.InterfaceDeclaration)
+	if (!result.children || tsLocal.isInterfaceDeclaration(node))
 		pushChildren(result, node.members.map(serialize));
-
-	// Add constructor defined properties to container class
-	if (result.children)
-		for (const member of result.children)
-			if (member.kind === Kind.Constructor && member.parameters)
-				for (const param of member.parameters)
-					if (param.kind === Kind.Property)
-						pushChildren(result, [param]);
-
-	if (symbol) {
-		if (
-			tsLocal.isInterfaceDeclaration(node) &&
-			symbol.flags & tsLocal.SymbolFlags.Class
-		) {
-			const decl = symbol.declarations?.[0] || symbol.valueDeclaration;
-			result.flags |= Flags.DeclarationMerge;
-			if (result.children && decl) {
-				const existingClass = getNodeFromDeclaration(symbol, decl);
-				pushChildren(
-					existingClass,
-					result.children.map(s => ({ ...s })),
-				);
-			}
-		}
-	}
+	addConstructorProperties(result);
+	mergeClassDeclaration(node, symbol, result);
 	if (tsLocal.isClassDeclaration(node) && currentOptions?.cxlExtensions)
 		getCxlClassMeta(node, symbol, result);
-
-	if (node.heritageClauses?.length) {
-		const type: Node = (result.type = {
-			flags: 0,
-			kind: Kind.ClassType,
-			name: '',
-			type: result,
-		});
-
-		node.heritageClauses.forEach(heritage =>
-			pushChildren(type, heritage.types.map(serialize)),
-		);
-
-		if (type.children)
-			for (const c of type.children) {
-				if (c.kind === Kind.Reference && c.type)
-					(c.type.extendedBy || (c.type.extendedBy = [])).push({
-						name: result.name,
-						type: result,
-						kind: Kind.Reference,
-						flags: 0,
-					});
-			}
-	}
-
+	if (node.heritageClauses?.length) addHeritage(result, node.heritageClauses);
 	return result;
 }
 
 function getTypeDeclaration(type: ts.Type, symbol: ts.Symbol) {
 	const OF = tsLocal.ObjectFlags;
 	const kind =
-		(type as ts.ObjectType).objectFlags & OF.Interface
+		isObjectType(type) && type.objectFlags & OF.Interface
 			? SK.InterfaceDeclaration
 			: undefined;
 	const decl = kind
@@ -1420,24 +1526,20 @@ function getTypeDeclaration(type: ts.Type, symbol: ts.Symbol) {
 function serializeReference(node: ts.TypeReferenceType) {
 	const typeObj = typeChecker.getTypeFromTypeNode(node);
 
-	let symbol =
-		typeObj.aliasSymbol || (typeObj.symbol as ts.Symbol | undefined);
+	let symbol = typeObj.aliasSymbol || getTypeSymbol(typeObj);
 	if (!symbol && tsLocal.isTypeReferenceNode(node))
 		symbol = typeChecker.getSymbolAtLocation(node.typeName);
 
 	if (symbol && symbol.flags & tsLocal.SymbolFlags.Alias)
-		symbol =
-			(typeChecker.getAliasedSymbol(symbol) as ts.Symbol | null) ??
-			symbol;
+		symbol = typeChecker.getAliasedSymbol(symbol);
 
-	const decl = symbol && getTypeDeclaration(typeObj, symbol);
-
-	const type =
-		decl && symbol
-			? getNodeFromDeclaration(symbol, decl)
-			: node.flags & tsLocal.NodeFlags.Synthesized
-				? undefined
-				: serializeType(typeObj);
+	let type: Node | undefined;
+	if (symbol) {
+		const declaration = getTypeDeclaration(typeObj, symbol);
+		if (declaration) type = getNodeFromDeclaration(symbol, declaration);
+	}
+	if (!type && !(node.flags & tsLocal.NodeFlags.Synthesized))
+		type = serializeType(typeObj);
 	const name = getNodeName(
 		tsLocal.isTypeReferenceNode(node) ? node.typeName : node.expression,
 	);
@@ -1525,13 +1627,11 @@ function serializeRestType(node: ts.RestTypeNode) {
 
 function serializeMappedType(node: ts.MappedTypeNode) {
 	const result = createNode(node);
-	if ('typeParameter' in node) {
-		const type = serialize(node.typeParameter);
-		result.children = [type];
-		if (type.children?.[0]) {
-			result.children.push(type.children[0]);
-			type.children = undefined;
-		}
+	const type = serialize(node.typeParameter);
+	result.children = [type];
+	if (type.children?.[0]) {
+		result.children.push(type.children[0]);
+		type.children = undefined;
 	}
 	if (node.type) result.type = serialize(node.type);
 	return result;
@@ -1563,7 +1663,7 @@ function normalizeModuleName(symbol: ts.Symbol) {
 			: symbol.name,
 	];
 
-	while ((parent = (parent as unknown as { parent?: ts.Symbol }).parent)) {
+	while ((parent = parent.parent)) {
 		if (parent.valueDeclaration?.kind !== SK.SourceFile)
 			result.unshift(parent.name);
 	}
@@ -1610,9 +1710,7 @@ function shouldPublishNamespace(symbol: ts.Symbol | undefined, result: Node) {
 			if (parent.valueDeclaration?.kind === SK.SourceFile) break;
 			const dtsNode = parent.$$moduleResult;
 			if (!dtsNode || !(dtsNode.flags & Flags.Export)) return false;
-		} while (
-			(parent = (parent as unknown as { parent?: ts.Symbol }).parent)
-		);
+		} while ((parent = parent.parent));
 	}
 	return true;
 }
@@ -1764,12 +1862,9 @@ function setup(
  */
 function getDeclarationOriginalFile(decl: ts.Declaration) {
 	const sourceFile =
-		decl.kind === SK.SourceFile
-			? (decl as ts.SourceFile)
-			: decl.getSourceFile();
+		tsLocal.isSourceFile(decl) ? decl : decl.getSourceFile();
 	return sourceFile.isDeclarationFile
-		? (sourceFile as unknown as { originalFileName?: string })
-				.originalFileName
+		? sourceFile.originalFileName
 		: undefined;
 }
 
@@ -1819,8 +1914,10 @@ function visit(n: ts.Node, parent: Node) {
 			const symbol = typeChecker.getSymbolAtLocation(n.moduleSpecifier);
 			if (symbol) parseModule(symbol, n.getSourceFile());
 		}
-	} else
-		switch (n.kind) {
+		} else if (tsLocal.isModuleDeclaration(n)) {
+			serializeModule(n);
+		} else
+			switch (n.kind) {
 			case SK.InterfaceDeclaration:
 			case SK.TypeAliasDeclaration:
 			case SK.FunctionDeclaration:
@@ -1829,10 +1926,7 @@ function visit(n: ts.Node, parent: Node) {
 			case SK.ClassDeclaration:
 				push(n);
 				break;
-			case SK.ModuleDeclaration:
-				serializeModule(n as ts.ModuleDeclaration);
-				break;
-			default:
+				default:
 				break;
 		}
 }
@@ -1959,7 +2053,8 @@ function buildProject(config: ts.ParsedCommandLine, options: BuildOptions) {
 }
 
 function buildReference(config: ts.ParsedCommandLine, options: BuildOptions) {
-	const path = (config.options as { configFilePath: string }).configFilePath;
+	const path = config.options.configFilePath;
+	if (!path) return;
 
 	if (!builtReferences?.includes(path)) {
 		const oldProgram = program;
@@ -1971,6 +2066,11 @@ function buildReference(config: ts.ParsedCommandLine, options: BuildOptions) {
 		program = oldProgram;
 		typeChecker = oldTypeChecker;
 	}
+}
+
+function isPrepended(reference: ts.ProjectReference) {
+	const legacyReference: { prepend?: boolean } = reference;
+	return legacyReference.prepend;
 }
 
 function buildTsconfig(
@@ -1993,10 +2093,10 @@ function buildTsconfig(
 		},
 	};
 
-	config.projectReferences?.forEach(ref => {
-		if (ref.prepend)
+	config.projectReferences?.forEach(reference => {
+		if (isPrepended(reference))
 			buildReference(
-				parseTsConfig(tsLocal.resolveProjectReferencePath(ref)),
+				parseTsConfig(tsLocal.resolveProjectReferencePath(reference)),
 				options,
 			);
 	});
@@ -2007,7 +2107,7 @@ function buildTsconfig(
 }
 
 export function buildConfig(
-	json: unknown,
+	json: object,
 	basePath: string,
 	options?: BuildOptions,
 ): Output {

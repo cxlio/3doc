@@ -1,9 +1,11 @@
 import {
+	Kind,
+	Flags,
+} from '../dts/index.js';
+import type {
 	Documentation,
 	DocumentationContent,
 	Node,
-	Kind,
-	Flags,
 	Output,
 } from '../dts/index.js';
 import { basename } from 'path';

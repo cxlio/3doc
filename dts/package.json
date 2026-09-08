@@ -6,7 +6,7 @@
 	"type": "module",
 	"scripts": {
 		"build": "cxl-build",
-		"test": "npm run build test"
+		"test": "npm run build -- test"
 	},
 	"exports": {
 		".": "./index.js",
@@ -14,12 +14,15 @@
 	},
 	"bugs": "https://github.com/cxlio/3doc/issues",
 	"dependencies": {
-		"typescript": "^5.9.3"
+		"typescript": "^6.0.3"
 	},
 	"homepage": "https://cxlio.github.io/docs/@cxl/dts",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/cxlio/3doc.git",
 		"directory": "dts"
+	},
+	"build": {
+		"platform": "node"
 	}
 }

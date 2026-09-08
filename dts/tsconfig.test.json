@@ -5,5 +5,5 @@
 			"path": "."
 		}
 	],
-	"include": ["test.ts"]
+	"include": ["test.ts", "test-benchmark.ts"]
 }

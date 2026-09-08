@@ -1,13 +1,13 @@
 import { existsSync } from 'fs';
 import { dirname, join, resolve, relative } from 'path';
-import { ParametersResult, mkdirp, readJson, sh } from '@cxl/program';
+import { mkdirp, readJson, sh } from '@cxl/program';
+import type { ParametersResult } from '@cxl/program';
 import {
 	Kind,
-	Output,
-	BuildOptions,
 	build,
 	buildConfig,
 } from '../dts/index.js';
+import type { Output, BuildOptions } from '../dts/index.js';
 import type { File } from './index.js';
 import { removeOlderPatchVersions } from './version.js';
 

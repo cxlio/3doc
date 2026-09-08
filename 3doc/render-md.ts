@@ -1,7 +1,7 @@
 import { Kind, Flags } from '../dts/enum.js';
 import { GroupTitle } from './localization.js';
 
-import type { Node, Output, Documentation, DocumentationContent } from '../dts';
+import type { Node, Output, Documentation, DocumentationContent } from '../dts/index.js';
 import type { File } from './index.js';
 import type { Configuration } from './render.js';
 

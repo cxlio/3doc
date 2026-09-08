@@ -2,7 +2,7 @@
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { program, parseArgv } from '@cxl/program';
-import { Node } from '../dts/index.js';
+import type { Node } from '../dts/index.js';
 
 import { Parameters, buildDocs } from './render.js';
 

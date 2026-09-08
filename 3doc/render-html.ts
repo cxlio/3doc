@@ -1,10 +1,12 @@
 import {
-	Output,
-	Node,
 	Kind,
 	Flags,
-	Source,
 	//printSignature,
+} from '../dts/index.js';
+import type {
+	Output,
+	Node,
+	Source,
 	DocumentationContent,
 } from '../dts/index.js';
 import type { File } from './index.js';
@@ -19,10 +21,12 @@ import { join, relative } from 'path';
 import { existsSync, readFileSync } from 'fs';
 import MarkdownIt from 'markdown-it';
 import {
-	ExtraDocumentation,
-	Section,
 	escape,
 	parseExample,
+} from './render.js';
+import type {
+	ExtraDocumentation,
+	Section,
 	RuntimeConfig,
 } from './render.js';
 import { findOtherVersions } from './version.js';

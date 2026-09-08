@@ -69,8 +69,8 @@ component(DocSearchInput, {
 				tsx(InputOption, {
 					$: el =>
 						get(el, 'selected').tap(sel => {
-							const url = sel?.value as string;
-							if (!url) return;
+							const url = sel?.value;
+							if (typeof url !== 'string' || !url) return;
 
 							if (CONFIG.spa) router.go(url);
 							else location.href = url;

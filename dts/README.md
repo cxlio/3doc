@@ -14,4 +14,3 @@ Generate a JSON AST of your TypeScript public API (exports, types, JSDoc) from t
 ## Installation
 
 	npm install @cxl/dts
-

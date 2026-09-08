@@ -37,7 +37,7 @@ export interface Documentation {
 
 export function getComponentIcon(item: Summary) {
 	const icon = item.docs?.content?.find(c => c.tag === 'icon')?.value;
-	return (icon as string | undefined) ?? 'brick';
+	return typeof icon === 'string' ? icon : 'brick';
 }
 
 export function docgen(json: SummaryJson) {
@@ -96,8 +96,7 @@ export function docgen(json: SummaryJson) {
 			for (const node of type.children) {
 				const nodeType = getTypeSummary(node);
 				if (
-					!nodeType ||
-					nodeType.kind !== Kind.Component ||
+					nodeType?.kind !== Kind.Component ||
 					nodeType.name === 'Component'
 				)
 					break;

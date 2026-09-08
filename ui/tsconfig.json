@@ -2,9 +2,21 @@
 	"extends": "../tsconfig.json",
 	"compilerOptions": {
 		"outDir": "../dist/ui",
-		"lib": ["dom", "es2023", "dom.iterable"]
+		"lib": [
+			"dom",
+			"es2025",
+			"dom.iterable"
+		]
 	},
-	"references": [{ "path": "../dts" }],
-	"include": ["*.ts"],
-	"exclude": ["test.ts"]
+	"references": [
+		{
+			"path": "../dts"
+		}
+	],
+	"include": [
+		"*.ts"
+	],
+	"exclude": [
+		"test.ts"
+	]
 }

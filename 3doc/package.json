@@ -18,12 +18,15 @@
 	},
 	"scripts": {
 		"build": "node build.ts",
-		"test": "npm run build test"
+		"test": "npm run build -- test"
 	},
 	"bugs": "https://github.com/cxlio/3doc/issues",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/cxlio/3doc.git",
 		"directory": "3doc"
+	},
+	"build": {
+		"platform": "node"
 	}
 }

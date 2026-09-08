@@ -1,12 +1,12 @@
 import {
 	Chip,
 	Pill,
-	Size,
 	component,
 	css,
 	font,
 	styleAttribute,
 } from '@cxl/ui';
+import type { Size } from '@cxl/ui';
 
 export const ChipColors = [
 	'Property',

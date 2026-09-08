@@ -6,11 +6,15 @@ import {
 	NumberType,
 	StringType,
 	VoidType,
+	build,
 	parse as _parse,
 	printNode as _printNode,
 } from './index.js';
 import { Test, TestApi, spec } from '@cxl/spec';
 import * as ts from 'typescript';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 
 function parse(source: string, compilerOptions?: ts.CompilerOptions) {
 	return _parse({
@@ -1197,6 +1201,39 @@ export function B() {}
 			a.equal(E.type.name, '1');
 			a.equal(E.kind, Kind.Constant);
 		});
+	});
+
+	a.test('prepended project reference', (a: TestApi) => {
+		const root = mkdtempSync(join(tmpdir(), 'dts-prepend-'));
+		const reference = join(root, 'reference');
+		const project = join(root, 'project');
+		mkdirSync(reference);
+		mkdirSync(project);
+		try {
+			writeFileSync(join(reference, 'index.ts'), 'export const refValue = 1;');
+			writeFileSync(
+				join(reference, 'tsconfig.json'),
+				JSON.stringify({
+					compilerOptions: { composite: true },
+					files: ['index.ts'],
+				}),
+			);
+			writeFileSync(join(project, 'index.ts'), 'export const value = 1;');
+			writeFileSync(
+				join(project, 'tsconfig.json'),
+				JSON.stringify({
+					compilerOptions: { composite: true },
+					files: ['index.ts'],
+					references: [{ path: '../reference', prepend: true }],
+				}),
+			);
+			const output = build(join(project, 'tsconfig.json'), {
+				exportsOnly: false,
+			});
+			a.ok(Object.values(output.index).some(node => node.name === 'refValue'));
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
 	});
 });
 

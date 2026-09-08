@@ -21,6 +21,12 @@ import { Kind } from '../dts/enum.js';
 
 class DocSearchPage extends Component {}
 
+function navigate(card: CardItem, href?: string) {
+	return onAction(card).tap(() => {
+		if (!CONFIG.spa && href) location.href = href;
+	});
+}
+
 component(DocSearchPage, {
 	tagName: 'doc-search-page',
 	augment: [
@@ -67,20 +73,12 @@ ${media(
 											c.kind === Kind.Component &&
 											c.tagName,
 									),
-								),
-								render: item =>
-									tsx(
-										CardItem,
-										{
-											$: card =>
-												onAction(card).tap(() => {
-													if (
-														!CONFIG.spa &&
-														item.value.href
-													)
-														location.href =
-															item.value.href;
-												}),
+							),
+							render: item =>
+								tsx(
+									CardItem,
+									{
+										$: card => navigate(card, item.value.href),
 											pad: 16,
 										},
 										tsx(Icon, { name: item.value.icon }),
@@ -97,11 +95,12 @@ ${media(
 					val = val.toLowerCase();
 					for (const group of list.children) {
 						for (const item of group.children) {
-							(item as HTMLElement).style.display =
-								!val ||
-								item.textContent.toLowerCase().includes(val)
-									? ''
-									: 'none';
+							if (item instanceof HTMLElement)
+								item.style.display =
+									!val ||
+									item.textContent.toLowerCase().includes(val)
+										? ''
+										: 'none';
 						}
 					}
 				});

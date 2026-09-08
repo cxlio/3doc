@@ -1,6 +1,7 @@
-import { Test, spec } from '@cxl/spec';
+import { Test, TestApi, spec } from '@cxl/spec';
 import { renderJson, SignatureText } from './render-summary.js';
-import { Kind, Node, Output, parse as _parse } from '../dts/index.js';
+import { Kind, parse as _parse } from '../dts/index.js';
+import type { Node, Output } from '../dts/index.js';
 import { findOtherVersions } from './version.js';
 import { buildDocs } from './render.js';
 import type { BuildDocsOptions } from './render.js';
@@ -151,7 +152,7 @@ const tests: Test = spec('docgen', s => {
 		});
 
 		it.test('TypeAlias', it => {
-			it.should('preserve indexed access types', a => {
+			it.should('preserve indexed access types', (a: TestApi) => {
 				const nodes = parse({
 					source: `
 						interface ShellApi { git(...args: string[]): Promise<string>; }
@@ -163,8 +164,7 @@ const tests: Test = spec('docgen', s => {
 				} as Pick<Output, 'index'> as Output);
 				const git = summary.index.find(n => n.name === 'Git');
 
-				if (typeof git?.type !== 'object')
-					throw new Error('Expected structured indexed access type.');
+				a.assert(typeof git?.type === 'object');
 
 				a.equal(git.type.kind, Kind.IndexedType);
 				a.equal(git.type.children?.[0]?.name, "'git'");

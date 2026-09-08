@@ -1,11 +1,13 @@
-import { T, tsx, Child, sortBy } from '@cxl/ui';
+import { T, tsx, sortBy } from '@cxl/ui';
+import type { Child } from '@cxl/ui';
 
 import { Kind, Flags } from '../dts/enum.js';
 
 import { DocDemo } from './demo.js';
 
-import type { DocumentationContent } from '../dts';
-import { SummaryJson, Summary, docgen } from './docgen.js';
+import type { DocumentationContent } from '../dts/index.js';
+import { docgen } from './docgen.js';
+import type { SummaryJson, Summary } from './docgen.js';
 
 export interface DocgenOptions {
 	summaryJson: SummaryJson;
@@ -339,7 +341,7 @@ background-color:var(--cxl-color-background)}</style>`;
 	function renderExtends(node: Summary | string | number) {
 		const extendStr: (string | Node)[] = [];
 		const type = getTypeSummary(node);
-		if (!type || type.kind !== Kind.ClassType) return;
+		if (type?.kind !== Kind.ClassType) return;
 
 		type.children?.forEach(child => {
 			if (typeof child !== 'object') return;
@@ -373,8 +375,7 @@ background-color:var(--cxl-color-background)}</style>`;
 		for (const node of type.children) {
 			const nodeType = getTypeSummary(node);
 			if (
-				!nodeType ||
-				nodeType.kind !== Kind.Component ||
+				nodeType?.kind !== Kind.Component ||
 				nodeType.name === 'Component'
 			)
 				break;

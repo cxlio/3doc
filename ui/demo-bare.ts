@@ -137,7 +137,7 @@ component(DocDemoBare, {
 					{
 						$: el =>
 							get(el, 'value').tap(v => {
-								host.view = v as 'desktop';
+								if (v === 'desktop' || v === 'source') host.view = v;
 							}),
 						id: 'view',
 						size: -2,
