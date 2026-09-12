@@ -7,8 +7,10 @@ import {
 	StringType,
 	VoidType,
 	build,
+	buildConfig,
 	parse as _parse,
 	printNode as _printNode,
+	type Node,
 } from './index.js';
 import { Test, TestApi, spec } from '@cxl/spec';
 import * as ts from 'typescript';
@@ -1055,6 +1057,97 @@ declare module "ns" {
 		a.assert(I?.children);
 		const [m1] = I.children;
 		a.equal(m1?.type?.type, A?.type?.type);
+	});
+
+	a.test('ReturnType callable JSDoc', (a: TestApi) => {
+		const source = `
+			function createApi() {
+				/**
+				 * Call docs.
+				 * @param value Call value.
+				 * @param optional Optional flag.
+				 * @param rest Rest values.
+				 */
+				function api(
+					value: string,
+					optional?: boolean,
+					...rest: number[]
+				): boolean {
+					return !!value;
+				}
+
+				/**
+				 * Child docs.
+				 * @param count Child count.
+				 */
+				api.child = function child(count: number): void {};
+				return api;
+			}
+
+			export interface Git {
+				api: ReturnType<typeof createApi>;
+			}
+			export type Api = ReturnType<typeof createApi>;
+			export type NamedApi = (value: string) => boolean;
+			export interface NamedGit {
+				api: NamedApi;
+			}
+		`;
+		const verifyResolvedType = (resolvedType: Node | undefined) => {
+			a.assert(resolvedType?.children);
+			a.equal(resolvedType.kind, Kind.ObjectType);
+			const [call, child] = resolvedType.children;
+			a.assert(call?.parameters && child?.parameters);
+			a.equal(call.kind, Kind.CallSignature);
+			a.equal(call.docs?.content?.[0]?.value, 'Call docs.');
+			const [value, optional, rest] = call.parameters;
+			a.assert(value && optional && rest);
+			a.equal(value.type, StringType);
+			a.equal(value.docs?.content?.[0]?.value, 'Call value.');
+			a.equal(optional.type, BooleanType);
+			a.ok(optional.flags & Flags.Optional);
+			a.equal(optional.docs?.content?.[0]?.value, 'Optional flag.');
+			a.assert(rest.type);
+			a.equal(rest.type.kind, Kind.Array);
+			a.equal(rest.type.type, NumberType);
+			a.ok(rest.flags & Flags.Rest);
+			a.equal(rest.docs?.content?.[0]?.value, 'Rest values.');
+			a.equal(child.name, 'child');
+			a.equal(child.kind, Kind.Method);
+			a.equal(child.docs?.content?.[0]?.value, 'Child docs.');
+			const [count] = child.parameters;
+			a.assert(count);
+			a.equal(count.type, NumberType);
+			a.equal(count.docs?.content?.[0]?.value, 'Child count.');
+		};
+		const verify = (nodes: Node[]) => {
+			const git = nodes.find(node => node.name === 'Git');
+			const api = nodes.find(node => node.name === 'Api');
+			const namedGit = nodes.find(node => node.name === 'NamedGit');
+			verifyResolvedType(git?.children?.[0]?.type?.resolvedType);
+			verifyResolvedType(api?.resolvedType);
+			a.equal(namedGit?.children?.[0]?.type?.resolvedType, undefined);
+		};
+
+		verify(parseExports(source));
+
+		const root = mkdtempSync(join(tmpdir(), 'dts-return-type-'));
+		try {
+			writeFileSync(join(root, 'index.ts'), source);
+			const json = {
+				compilerOptions: { types: [] },
+				files: ['index.ts'],
+			};
+			const tsconfig = join(root, 'tsconfig.json');
+			writeFileSync(tsconfig, JSON.stringify(json));
+			const declarations = (modules: Node[]) =>
+				modules.flatMap(module => module.children ?? []);
+
+			verify(declarations(build(tsconfig).modules));
+			verify(declarations(buildConfig(json, root).modules));
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
 	});
 
 	a.test('EventAttribute', (a: TestApi) => {

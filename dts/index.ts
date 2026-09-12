@@ -727,6 +727,8 @@ function getResolvedType(type: ts.Type) {
 	const widened = typeChecker.getWidenedType(type);
 
 	if (widened === type) {
+		const callable = serializeAnonymousCallableType(widened);
+		if (callable) return callable;
 		try {
 			const resolved = typeChecker.typeToTypeNode(
 				widened,
@@ -844,8 +846,11 @@ function processJsDocTag(
 		});
 }
 
-function getNodeDocs(node: ts.Node, result: Node) {
-	const jsDoc = node.jsDoc;
+function getNodeDocs(
+	node: ts.Node,
+	result: Node,
+	jsDoc: readonly ts.JSDoc[] | undefined = node.jsDoc,
+) {
 	const content: DocumentationContent[] = [];
 	const docs: Documentation = { content };
 
@@ -1048,15 +1053,21 @@ function serializeLiteralType(type: ts.Type, baseType: ts.Type): Node {
 	};
 }
 
-function serializeTypeObject(type: ts.ObjectType): Node {
-	const result = typeChecker.typeToTypeNode(
+function serializeTypeObject(
+	type: ts.ObjectType,
+	callSignatures = typeChecker.getSignaturesOfType(
+		type,
+		tsLocal.SignatureKind.Call,
+	),
+): Node {
+	const typeNode = typeChecker.typeToTypeNode(
 		type,
 		undefined,
 		tsLocal.NodeBuilderFlags.InObjectTypeLiteral |
 			tsLocal.NodeBuilderFlags.NoTruncation |
 			tsLocal.NodeBuilderFlags.IgnoreErrors,
 	);
-	if (!result) {
+	if (!typeNode) {
 		return {
 			name: typeChecker.typeToString(type),
 			kind: Kind.ObjectType,
@@ -1064,7 +1075,68 @@ function serializeTypeObject(type: ts.ObjectType): Node {
 		};
 	}
 
-	return serialize(result);
+	const result = serialize(typeNode);
+	const properties = new Map(
+		typeChecker
+			.getPropertiesOfType(type)
+			.map(symbol => [symbol.name, symbol]),
+	);
+	let callIndex = 0;
+
+	result.children?.forEach(child => {
+		if (child.kind === Kind.CallSignature) {
+			applySignatureDeclaration(child, callSignatures[callIndex++]);
+			return;
+		}
+
+		const symbol = properties.get(child.name);
+		const declaration = getSymbolDeclaration(symbol);
+		if (!symbol || !declaration) return;
+		const propertyType = typeChecker.getTypeOfSymbolAtLocation(
+			symbol,
+			declaration,
+		);
+		const signatures = typeChecker.getSignaturesOfType(
+			propertyType,
+			tsLocal.SignatureKind.Call,
+		);
+		if (signatures.length === 1)
+			applySignatureDeclaration(child, signatures[0]);
+	});
+
+	return result;
+}
+
+function serializeAnonymousCallableType(type: ts.Type) {
+	if (
+		type.aliasSymbol ||
+		!isObjectType(type) ||
+		!(type.objectFlags & tsLocal.ObjectFlags.Anonymous)
+	)
+		return;
+
+	const signatures = typeChecker.getSignaturesOfType(
+		type,
+		tsLocal.SignatureKind.Call,
+	);
+	if (signatures.length) return serializeTypeObject(type, signatures);
+}
+
+function applySignatureDeclaration(
+	result: Node,
+	signature: ts.Signature | undefined,
+) {
+	const declaration = signature?.declaration;
+	if (!signature || !declaration) return;
+
+	result.source = getNodeSource(declaration);
+	result.parameters = signature.getParameters().map(serializeParameter);
+	const docs = getNodeDocs(
+		declaration,
+		result,
+		tsLocal.getJSDocCommentsAndTags(declaration).filter(tsLocal.isJSDoc),
+	);
+	if (docs) result.docs = docs;
 }
 
 function isArrayType(type: ts.Type) {
@@ -1546,7 +1618,9 @@ function serializeReference(node: ts.TypeReferenceType) {
 	if (type && !type.name) type.name = name;
 
 	const resolvedType =
-		type?.kind === 0 ? getResolvedType(typeObj) : undefined;
+		type?.kind === 0
+			? getResolvedType(typeObj)
+			: serializeAnonymousCallableType(typeObj);
 
 	return createNode(node, {
 		name,
