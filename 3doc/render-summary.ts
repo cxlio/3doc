@@ -20,8 +20,6 @@ declare module "../dts/index.js" {
 	}
 }
 
-export { Kind } from "../dts/index.js";
-
 export type Example = { tagName: string; title: string; html: string };
 
 export interface SummaryJson {
