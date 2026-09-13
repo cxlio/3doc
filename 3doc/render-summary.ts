@@ -1,29 +1,26 @@
-import {
-	Kind,
-	Flags,
-} from '../dts/index.js';
+import { Kind, Flags } from "../dts/index.js";
 import type {
 	Documentation,
 	DocumentationContent,
 	Node,
 	Output,
-} from '../dts/index.js';
-import { basename } from 'path';
-import { existsSync } from 'fs';
+} from "../dts/index.js";
+import { basename } from "path";
+import { existsSync } from "fs";
 
-import { escape } from './render.js';
+import { escape } from "./render.js";
 
-import type { File } from './index.js';
-import type { Configuration } from './render.js';
+import type { File } from "./index.js";
+import type { Configuration } from "./render.js";
 
-declare module '../dts/index.js' {
+declare module "../dts/index.js" {
 	interface Node {
 		__3docHtmlType?: string;
 		__3docSummaryNode?: Summary;
 	}
 }
 
-export { Kind } from '../dts/index.js';
+export { Kind } from "../dts/index.js";
 
 export type Example = { tagName: string; title: string; html: string };
 
@@ -46,25 +43,25 @@ export interface Summary {
 }
 
 function removeHtml(str: string) {
-	let result = '';
+	let result = "";
 	let start = 0;
-	let tagStart = str.indexOf('<');
+	let tagStart = str.indexOf("<");
 
 	while (tagStart !== -1) {
-		const tagEnd = str.indexOf('>', tagStart);
+		const tagEnd = str.indexOf(">", tagStart);
 		if (tagEnd === -1) break;
 		result += str.slice(start, tagStart);
 		start = tagEnd + 1;
-		tagStart = str.indexOf('<', start);
+		tagStart = str.indexOf("<", start);
 	}
 
 	return (result + str.slice(start))
-		.replace(/&gt;/g, '>')
-		.replace(/&lt;/g, '<');
+		.replace(/&gt;/g, ">")
+		.replace(/&lt;/g, "<");
 }
 
 function sortByName(a: Summary, b: Summary) {
-	return a.name === b.name ? 0 : (a.name ?? '') < (b.name ?? '') ? -1 : 1;
+	return a.name === b.name ? 0 : (a.name ?? "") < (b.name ?? "") ? -1 : 1;
 }
 
 function hasOwnPage(node: Node) {
@@ -84,7 +81,7 @@ function hasOwnPage(node: Node) {
 function ClassType(node: Node) {
 	const extendStr: string[] = [];
 	const implementStr: string[] = [];
-	node.children?.forEach(child => {
+	node.children?.forEach((child) => {
 		const link = Type(child);
 		const type = child.type;
 
@@ -97,13 +94,13 @@ function ClassType(node: Node) {
 			: implementStr.push(link);
 	});
 	return `<cxl-t h6 inline>${
-		(extendStr.length ? `extends ${extendStr.join(', ')}` : '') +
-		(implementStr.length ? ` implements ${implementStr.join(', ')}` : '')
+		(extendStr.length ? `extends ${extendStr.join(", ")}` : "") +
+		(implementStr.length ? ` implements ${implementStr.join(", ")}` : "")
 	}</cxl-t>`;
 }
 
 function ConditionalType(node: Node) {
-	if (!node.children) return '';
+	if (!node.children) return "";
 
 	const [check, extend, trueVal, falseVal] = node.children;
 	return `${Type(check)} extends ${Type(extend)} ? ${Type(trueVal)} : ${Type(
@@ -128,20 +125,20 @@ export function getHref(node: Node, parent?: Node): string {
 	const parentHref =
 		node.parent && node.parent.name !== parent?.name
 			? getHref(node.parent)
-			: '';
+			: "";
 
-	return parentHref + (node.id ? '#s' + node.id.toString() : '');
+	return parentHref + (node.id ? "#s" + node.id.toString() : "");
 }
 
-function escapeFileName(name: string, replaceExt = '.html') {
-	return name.replace(/\.([tj]sx?|md)$/, replaceExt).replace(/[/"]/g, '--');
+function escapeFileName(name: string, replaceExt = ".html") {
+	return name.replace(/\.([tj]sx?|md)$/, replaceExt).replace(/[/"]/g, "--");
 }
 
 function getPageName(page: Node) {
 	if (page.kind === Kind.Module) {
 		const result = escapeFileName(page.name);
-		return result === 'index.html' && existsSync('README.md')
-			? 'index-api.html'
+		return result === "index.html" && existsSync("README.md")
+			? "index-api.html"
 			: result;
 	}
 
@@ -153,7 +150,7 @@ function getPageName(page: Node) {
 	if (!source)
 		throw new Error(`Source not found for page node "${page.name}"`);
 
-	const prefix = escapeFileName(source.name, '--');
+	const prefix = escapeFileName(source.name, "--");
 
 	return `${prefix}${page.name}.html`;
 }
@@ -164,8 +161,8 @@ function Link(node: Node, content?: string, parent?: Node): string {
 		(node.name
 			? escape(node.name)
 			: node.flags & Flags.Default
-				? '<i>default</i>'
-				: '(Unknown)');
+				? "<i>default</i>"
+				: "(Unknown)");
 
 	if (node.type && isReferenceNode(node)) node = node.type;
 
@@ -178,18 +175,18 @@ function Link(node: Node, content?: string, parent?: Node): string {
 
 function TypeArguments(types?: Node[]): string {
 	return types
-		? '&lt;' +
+		? "&lt;" +
 				types
 					.map(
-						t =>
+						(t) =>
 							Type(t) +
 							(t.kind !== Kind.Reference && t.type
 								? ` extends ${Type(t.type)}`
-								: ''),
+								: ""),
 					)
-					.join(', ') +
-				'&gt;'
-		: '';
+					.join(", ") +
+				"&gt;"
+		: "";
 }
 
 function _renderType(type: Node): string {
@@ -203,17 +200,17 @@ function _renderType(type: Node): string {
 		case Kind.ConditionalType:
 			return ConditionalType(type);
 		case Kind.IndexedType:
-			if (!type.children) throw new Error('Invalid node');
+			if (!type.children) throw new Error("Invalid node");
 			return `${Type(type.children[0])}[${Type(type.children[1])}]`;
 		/*case Kind.CallSignature:
 			if (!type.children) throw new Error('Invalid node');
 			return `${Type(type.children[0])}.${Type(type.children[1])}`;*/
 		case Kind.TypeUnion:
-			return type.children?.map(Type).join(' | ') || '';
+			return type.children?.map(Type).join(" | ") || "";
 		case Kind.TypeIntersection:
-			return type.children?.map(Type).join(' & ') || '';
+			return type.children?.map(Type).join(" & ") || "";
 		case Kind.Tuple:
-			return `[${type.children?.map(Type).join(', ') || ''}]`;
+			return `[${type.children?.map(Type).join(", ") || ""}]`;
 		case Kind.Array:
 			return `${Type(type.type)}[]`;
 		case Kind.Reference:
@@ -244,16 +241,16 @@ function _renderType(type: Node): string {
 		case Kind.Typeof:
 			return `typeof ${type.name}`;
 		case Kind.ThisType:
-			return 'this';
+			return "this";
 		case Kind.Class:
 		case Kind.Interface:
 			return Link(type);
 		case Kind.ReadonlyKeyword:
 			return `readonly ${Type(type.type)}`;
 		case Kind.Symbol:
-			return 'Symbol';
+			return "Symbol";
 		case Kind.UnknownType:
-			return 'unknown';
+			return "unknown";
 		default:
 			return Signature(type);
 	}
@@ -267,39 +264,39 @@ function FunctionType(node: Node) {
 }
 
 function SignatureName({ flags, kind, name }: Node) {
-	if (!name && kind === Kind.ConstructSignature) return 'new';
+	if (!name && kind === Kind.ConstructSignature) return "new";
 
-	return (name ? escape(name) : '') + (flags & Flags.Optional ? '?' : '');
+	return (name ? escape(name) : "") + (flags & Flags.Optional ? "?" : "");
 }
 
 function SignatureParameters(parameters?: Node[]) {
-	if (!parameters) return '';
+	if (!parameters) return "";
 
-	return `(${parameters.map(Parameter).join(', ')})`;
+	return `(${parameters.map(Parameter).join(", ")})`;
 }
 
 function Parameter(p: Node) {
 	const modifiers =
 		p.flags & Flags.Public
-			? 'public '
+			? "public "
 			: p.flags & Flags.Private
-				? 'private'
+				? "private"
 				: p.flags & Flags.Protected
-					? 'protected '
-					: '';
+					? "protected "
+					: "";
 
-	const name = `${modifiers}${p.flags & Flags.Rest ? '...' : ''}${p.name}${
-		p.flags & Flags.Optional ? '?' : ''
+	const name = `${modifiers}${p.flags & Flags.Rest ? "..." : ""}${p.name}${
+		p.flags & Flags.Optional ? "?" : ""
 	}`;
-	return `${name}: ${Type(p.type)}${p.value ? ` = ${p.value}` : ''}`;
+	return `${name}: ${Type(p.type)}${p.value ? ` = ${p.value}` : ""}`;
 }
 
 function MappedType(type: Node) {
-	if (!type.children?.length || !type.type) return '?';
+	if (!type.children?.length || !type.type) return "?";
 	const [K, T] = type.children;
 	return K && T
 		? `{ [${renderType(K)} in ${renderType(T)}]: ${renderType(type.type)} }`
-		: '';
+		: "";
 }
 
 function TypeParameter(type: Node) {
@@ -308,12 +305,12 @@ function TypeParameter(type: Node) {
 }
 
 function IndexSignature(node: Node) {
-	const params = node.parameters?.map(Signature).join('') || '';
-	return `[${params}]: ${node.type ? renderType(node.type) : '?'}`;
+	const params = node.parameters?.map(Signature).join("") || "";
+	return `[${params}]: ${node.type ? renderType(node.type) : "?"}`;
 }
 
 function SignatureType({ type, kind, name }: Node) {
-	if (!type) return '';
+	if (!type) return "";
 	if (
 		kind === Kind.Class ||
 		kind === Kind.Interface ||
@@ -326,17 +323,17 @@ function SignatureType({ type, kind, name }: Node) {
 }
 
 function getTypeColon(kind: Kind, name: string) {
-	if (kind === Kind.TypeAlias) return ' = ';
-	if (name || kind === Kind.Constructor) return ': ';
-	if (kind === Kind.CallSignature) return ' => ';
-	if (kind === Kind.ReadonlyKeyword) return 'readonly ';
+	if (kind === Kind.TypeAlias) return " = ";
+	if (name || kind === Kind.Constructor) return ": ";
+	if (kind === Kind.CallSignature) return " => ";
+	if (kind === Kind.ReadonlyKeyword) return "readonly ";
 
-	return ' => ';
+	return " => ";
 }
 
 function SignatureValue(val?: string) {
-	if (val && val.length > 50) return '';
-	return val ? ` = ${escape(val)}` : '';
+	if (val && val.length > 50) return "";
+	return val ? ` = ${escape(val)}` : "";
 }
 
 export function SignatureText(node: Node): string {
@@ -360,7 +357,7 @@ function Property(node: Node) {
 }
 
 function ObjectType(node: Node) {
-	const result = `${node.children?.map(Property).join('; ') || ''}`;
+	const result = `${node.children?.map(Property).join("; ") || ""}`;
 	return `{ ${result} }`;
 }
 
@@ -369,8 +366,8 @@ function renderTypeString(type: Node): string {
 }
 
 export function Type(type?: Node): string {
-	if (!type) return '';
-	const flags = type.flags & Flags.Rest ? '...' : '';
+	if (!type) return "";
+	const flags = type.flags & Flags.Rest ? "..." : "";
 	return `${flags}${renderTypeString(type)}`;
 }
 
@@ -396,7 +393,7 @@ function isSimpleType(node: Node) {
 
 function renderClassType(node: Node): Summary {
 	let children: Summary[] | undefined;
-	node.children?.forEach(child => {
+	node.children?.forEach((child) => {
 		if (child.kind !== Kind.Reference) return;
 		(children ??= []).push({
 			kind: Kind.Reference,
@@ -429,7 +426,7 @@ function renderType(node: Node): string | Summary {
 			`${Type(node)}${
 				typeParameters !== node.typeParameters
 					? TypeArguments(typeParameters)
-					: ''
+					: ""
 			}`,
 		);
 
@@ -491,7 +488,7 @@ function getResolvedType(node: Node, typeNode?: Node) {
 	if (!resolvedType && typeNode?.resolvedType)
 		resolvedType = renderType(typeNode.resolvedType);
 
-	if (resolvedType === 'any') return;
+	if (resolvedType === "any") return;
 
 	return resolvedType;
 }
@@ -560,8 +557,8 @@ export function renderJson(output: Output): SummaryJson {
 export function flatDocumentationContent(
 	doc: DocumentationContent[] | string,
 ): string {
-	if (typeof doc === 'string') return doc;
-	return doc.map(d => d.value).join(' ');
+	if (typeof doc === "string") return doc;
+	return doc.map((d) => d.value).join(" ");
 }
 
 export function findExamples(
@@ -576,18 +573,18 @@ export function findExamples(
 
 	if (node.docs?.content)
 		for (const content of node.docs.content) {
-			if (content.tag === 'demo' || content.tag === 'example') {
-				let caption = '';
+			if (content.tag === "demo" || content.tag === "example") {
+				let caption = "";
 				const html = flatDocumentationContent(content.value).replace(
 					/<caption>(.+?)<\/caption>/,
 					(_, val) => {
 						caption = val;
-						return '';
+						return "";
 					},
 				);
 				const title = tagName
 					? `${tagName}[${caption || node.name}]`
-					: node.docs.tagName || '?';
+					: node.docs.tagName || "?";
 				result.push({ tagName, title, html });
 			}
 		}
@@ -604,7 +601,7 @@ export function render(app: Configuration, output: Output): File[] {
 
 	return [
 		{
-			name: version ? `${version}/summary.json` : 'summary.json',
+			name: version ? `${version}/summary.json` : "summary.json",
 			content: JSON.stringify(renderJson(output)),
 		},
 	];
