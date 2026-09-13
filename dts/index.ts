@@ -1107,9 +1107,9 @@ function serializeTypeObject(
 	return result;
 }
 
-function serializeAnonymousCallableType(type: ts.Type) {
+function serializeAnonymousCallableType(type: ts.Type, aliasType?: Node) {
 	if (
-		type.aliasSymbol ||
+		(type.aliasSymbol && !aliasType) ||
 		!isObjectType(type) ||
 		!(type.objectFlags & tsLocal.ObjectFlags.Anonymous)
 	)
@@ -1119,7 +1119,8 @@ function serializeAnonymousCallableType(type: ts.Type) {
 		type,
 		tsLocal.SignatureKind.Call,
 	);
-	if (signatures.length) return serializeTypeObject(type, signatures);
+	if (signatures.length)
+		return aliasType ?? serializeTypeObject(type, signatures);
 }
 
 function applySignatureDeclaration(
@@ -1620,7 +1621,12 @@ function serializeReference(node: ts.TypeReferenceType) {
 	const resolvedType =
 		type?.kind === 0
 			? getResolvedType(typeObj)
-			: serializeAnonymousCallableType(typeObj);
+			: serializeAnonymousCallableType(
+					typeObj,
+					name === 'ReturnType' && type?.kind === Kind.TypeAlias
+						? type.type
+						: undefined,
+				);
 
 	return createNode(node, {
 		name,

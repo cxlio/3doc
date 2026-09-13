@@ -1150,6 +1150,80 @@ declare module "ns" {
 		}
 	});
 
+	a.test('merged interface callable ReturnType', (a: TestApi) => {
+		const root = mkdtempSync(join(tmpdir(), 'dts-merged-return-type-'));
+		try {
+			writeFileSync(
+				join(root, 'registry.ts'),
+				'export interface PluginMap { core: { api: void } }',
+			);
+			writeFileSync(
+				join(root, 'types.ts'),
+				'export interface Input { value: string } export type Output = Promise<string>;',
+			);
+			writeFileSync(
+				join(root, 'plugin.ts'),
+				`
+					import type { Input, Output } from './types.js';
+					type GitApi = {
+						/** Git docs. @param input Input docs. */
+						(input: Input, optional?: boolean, ...rest: number[]): Output;
+						/** Diff docs. @param input Diff input docs. */
+						diff(input: Input): Output;
+					};
+					declare module './registry.js' {
+						interface PluginMap {
+							git: { api: ReturnType<typeof createApi> };
+							named: { api: GitApi };
+						}
+					}
+					function createApi(): GitApi {
+						function git(input: Input, optional?: boolean, ...rest: number[]): Output {
+							return Promise.resolve(input.value + optional + rest.length);
+						}
+						git.diff = function diff(input: Input): Output {
+							return Promise.resolve(input.value);
+						};
+						return git;
+					}
+				`,
+			);
+			const tsconfig = join(root, 'tsconfig.json');
+			writeFileSync(
+				tsconfig,
+				JSON.stringify({
+					compilerOptions: { module: 'nodenext', types: [] },
+					files: ['registry.ts', 'types.ts', 'plugin.ts'],
+				}),
+			);
+
+			const output = build(tsconfig);
+			const pluginMap = Object.values(output.index).find(
+				node => node.name === 'PluginMap',
+			);
+			const git = pluginMap?.children?.find(node => node.name === 'git');
+			const named = pluginMap?.children?.find(node => node.name === 'named');
+			const api = git?.type?.children?.find(node => node.name === 'api');
+			const namedApi = named?.type?.children?.find(node => node.name === 'api');
+			const [call, diff] = api?.type?.resolvedType?.children ?? [];
+
+			a.assert(call?.parameters && diff?.parameters);
+			a.equal(call.kind, Kind.CallSignature);
+			a.equal(call.docs?.content?.[0]?.value, 'Git docs.');
+			a.equal(call.parameters[0]?.type?.name, 'Input');
+			a.ok(call.parameters[1]?.flags && call.parameters[1].flags & Flags.Optional);
+			a.ok(call.parameters[2]?.flags && call.parameters[2].flags & Flags.Rest);
+			a.equal(call.type?.name, 'Output');
+			a.equal(diff.name, 'diff');
+			a.equal(diff.docs?.content?.[0]?.value, 'Diff docs.');
+			a.equal(diff.parameters[0]?.type?.name, 'Input');
+			a.equal(diff.type?.name, 'Output');
+			a.equal(namedApi?.type?.resolvedType, undefined);
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	});
+
 	a.test('EventAttribute', (a: TestApi) => {
 		const [I] = parse(
 			`class I { @EventAttribute() m1?: any }; function EventAttribute() { return (ctor: any)=> {} }`,

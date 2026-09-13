@@ -25,6 +25,17 @@ const returnTypeSource = `
 	export type Api = ReturnType<typeof createApi>;
 `;
 
+const aliasReturnTypeSource = `
+	type Api = {
+		/** Call docs. @param value Call value. */
+		(value: string): boolean;
+		/** Child docs. @param count Child count. */
+		child(count: number): void;
+	};
+	declare function createApi(): Api;
+	export interface Git { api: ReturnType<typeof createApi> }
+`;
+
 const benchmark: Test = spec('dts benchmark', a => {
 	a.test('parse representative declarations', a => {
 		let result = parse({ source });
@@ -37,6 +48,13 @@ const benchmark: Test = spec('dts benchmark', a => {
 		for (let i = 0; i < 49; i++)
 			result = parse({ source: returnTypeSource });
 		a.equal(result.length, 2);
+	});
+
+	a.test('parse aliased callable ReturnType', a => {
+		let result = parse({ source: aliasReturnTypeSource });
+		for (let i = 0; i < 49; i++)
+			result = parse({ source: aliasReturnTypeSource });
+		a.equal(result.length, 1);
 	});
 });
 

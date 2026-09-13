@@ -1,6 +1,7 @@
 import { Test, TestApi, spec } from '@cxl/spec';
 import { renderJson, SignatureText } from './render-summary.js';
-import { Kind, parse as _parse } from '../dts/index.js';
+import type { Summary } from './render-summary.js';
+import { Flags, Kind, build, parse as _parse } from '../dts/index.js';
 import type { Node, Output } from '../dts/index.js';
 import { findOtherVersions } from './version.js';
 import { buildDocs } from './render.js';
@@ -169,6 +170,86 @@ const tests: Test = spec('docgen', s => {
 				a.equal(git.type.kind, Kind.IndexedType);
 				a.equal(git.type.children?.[0]?.name, "'git'");
 				a.equal(git.type.children?.[1]?.name, 'ShellApi');
+			});
+
+			it.should('render merged callable ReturnType', (a: TestApi) => {
+				const root = mkdtempSync(join(tmpdir(), '3doc-merged-return-type-'));
+				try {
+					writeFileSync(
+						join(root, 'registry.ts'),
+						'export interface PluginMap {}',
+					);
+					writeFileSync(
+						join(root, 'types.ts'),
+						'export interface Input { value: string } export type Output = Promise<string>;',
+					);
+					writeFileSync(
+						join(root, 'plugin.ts'),
+						`
+							import type { Input, Output } from './types.js';
+							type GitApi = {
+								/** Git docs. @param input Input docs. */
+								(input: Input, optional?: boolean, ...rest: number[]): Output;
+								/** Diff docs. */
+								diff(input: Input): Output;
+							};
+							declare module './registry.js' {
+								interface PluginMap {
+									git: { api: ReturnType<typeof createApi> };
+								}
+							}
+							declare function createApi(): GitApi;
+						`,
+					);
+					const tsconfig = join(root, 'tsconfig.json');
+					writeFileSync(
+						tsconfig,
+						JSON.stringify({
+							compilerOptions: { module: 'nodenext', types: [] },
+							files: ['registry.ts', 'types.ts', 'plugin.ts'],
+						}),
+					);
+
+					const summary = renderJson(build(tsconfig));
+					const pluginMap = summary.index.find(
+						node => node.name === 'PluginMap',
+					);
+					const git = pluginMap?.children?.find(node => node.name === 'git');
+					const gitType = git?.type;
+					const api =
+						typeof gitType === 'object'
+							? gitType.children?.find(node => node.name === 'api')
+							: undefined;
+					const resolvedType = api?.resolvedType;
+					const [call, diff] =
+						typeof resolvedType === 'object'
+							? resolvedType.children ?? []
+							: [];
+					const typeName = (type: Summary['type']) =>
+						typeof type === 'number'
+							? summary.index.find(node => node.id === type)?.name
+							: type;
+
+					a.assert(call?.parameters && diff?.parameters);
+					a.equal(call.kind, Kind.CallSignature);
+					a.equal(call.docs?.content?.[0]?.value, 'Git docs.');
+					a.equal(typeName(call.parameters[0]?.type), 'Input');
+					a.ok(
+						call.parameters[1]?.flags &&
+							call.parameters[1].flags & Flags.Optional,
+					);
+					a.ok(
+						call.parameters[2]?.flags &&
+							call.parameters[2].flags & Flags.Rest,
+					);
+					a.equal(typeName(call.type), 'Output');
+					a.equal(diff.name, 'diff');
+					a.equal(diff.docs?.content?.[0]?.value, 'Diff docs.');
+					a.equal(typeName(diff.parameters[0]?.type), 'Input');
+					a.equal(typeName(diff.type), 'Output');
+				} finally {
+					rmSync(root, { recursive: true, force: true });
+				}
 			});
 
 			/*it.should('render union', a => {
