@@ -4,24 +4,21 @@ import type { Output, Node, Source } from '../dts/index.js';
 import type { File } from './index.js';
 import type { Configuration } from './render.js';
 
-type JsonValue = Source | Node | string | number | boolean | null | undefined;
+type JsonValue =
+	| (Source & { kind?: never })
+	| (Node & { index?: never })
+	| string
+	| number
+	| boolean
+	| null
+	| undefined;
 
 function isSource(value: JsonValue): value is Source {
-	return (
-		typeof value === 'object' &&
-		value !== null &&
-		'index' in value &&
-		'sourceFile' in value
-	);
+	return typeof value === 'object' && value?.index !== undefined;
 }
 
 function isReference(value: JsonValue): value is Node {
-	return (
-		typeof value === 'object' &&
-		value !== null &&
-		'kind' in value &&
-		value.kind === Kind.Reference
-	);
+	return typeof value === 'object' && value?.kind === Kind.Reference;
 }
 
 function serialize(key: string, value: JsonValue) {

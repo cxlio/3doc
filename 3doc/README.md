@@ -6,7 +6,7 @@ TypeScript/JavaScript API documentation generator that builds versioned static H
 
 ## Project Details
 
--   Branch Version: [1.0.1](https://npmjs.com/package/@cxl/3doc/v/1.0.1)
+-   Branch Version: [1.1.0](https://npmjs.com/package/@cxl/3doc/v/1.1.0)
 -   License: SEE LICENSE IN LICENSE.md
 -   Documentation: [Link](https://cxlio.github.io/docs/@cxl/3doc)
 -   Report Issues: [Github](https://github.com/cxlio/3doc/issues)

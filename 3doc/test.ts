@@ -1,11 +1,14 @@
 import { Test, TestApi, spec } from '@cxl/spec';
 import { renderJson, SignatureText } from './render-summary.js';
 import type { Summary } from './render-summary.js';
+import { render as renderDocsJson } from './render-json.js';
+import { createSourceFile, ScriptTarget } from 'typescript';
 import { Flags, Kind, build, parse as _parse } from '../dts/index.js';
 import type { Node, Output } from '../dts/index.js';
 import { findOtherVersions } from './version.js';
 import { buildDocs } from './render.js';
 import type { BuildDocsOptions } from './render.js';
+import type { Configuration } from './render.js';
 import {
 	existsSync,
 	mkdirSync,
@@ -14,7 +17,7 @@ import {
 	writeFileSync,
 } from 'fs';
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { join, relative } from 'path';
 
 export function node(p: Partial<Node>): Node {
 	return { name: 'A', kind: Kind.Unknown, flags: 0, ...p };
@@ -54,6 +57,56 @@ function buildFixture() {
 }
 
 const tests: Test = spec('docgen', s => {
+	s.test('render-json', it => {
+		it.should('serialize source positions and references without cycles', (a: TestApi) => {
+			const sourceFile = createSourceFile(
+				join(process.cwd(), 'example.ts'),
+				'\nexport const value = 1;',
+				ScriptTarget.Latest,
+			);
+			const target = node({ id: 42 });
+			const reference = node({
+				name: 'Ref',
+				kind: Kind.Reference,
+				type: target,
+				typeParameters: [node({ name: 'T' })],
+			});
+			target.children = [reference];
+			const value = node({
+				value: '1',
+				source: { name: 'value', index: 1, node: sourceFile, sourceFile },
+				children: [reference],
+			});
+			const [file] = renderDocsJson({} as Configuration, {
+				modules: [value],
+			} as Output);
+			a.assert(file);
+			a.equal(file.name, 'docs.json');
+			a.equal(file.content, JSON.stringify({
+				modules: [{
+					name: 'A', kind: Kind.Unknown, flags: 0, value: '1',
+					source: { fileName: relative(process.cwd(), sourceFile.fileName), line: 1, ch: 0 },
+					children: [{ id: 42, name: 'Ref', kind: Kind.Reference,
+						typeParameters: [{ name: 'T', kind: Kind.Unknown, flags: 0 }] }],
+				}],
+			}, null, 2));
+		});
+		it.should('omit unavailable source files and preserve primitive values', (a: TestApi) => {
+			const sourceFile = createSourceFile('example.ts', '', ScriptTarget.Latest);
+			const [file] = renderDocsJson({} as Configuration, {
+				modules: [node({ source: {
+					name: 'A', index: 0, node: sourceFile, sourceFile: undefined,
+				} }), node({ kind: Kind.Reference, name: 'Unresolved' }),
+				{ name: 'A', kind: Kind.Unknown, flags: 0, docs: { decorator: false }, value: 'text' }],
+			} as Output);
+			a.assert(file);
+			a.equal(file.content, JSON.stringify({ modules: [
+				{ name: 'A', kind: Kind.Unknown, flags: 0 },
+				{ name: 'Unresolved', kind: Kind.Reference },
+				{ name: 'A', kind: Kind.Unknown, flags: 0, docs: { decorator: false }, value: 'text' },
+			] }, null, 2));
+		});
+	});
 	s.test('render-html', it => {
 		it.should('replace the previous patch version', a => {
 			const outputDir = mkdtempSync(join(tmpdir(), '3doc-versions-'));
@@ -234,14 +287,10 @@ const tests: Test = spec('docgen', s => {
 					a.equal(call.kind, Kind.CallSignature);
 					a.equal(call.docs?.content?.[0]?.value, 'Git docs.');
 					a.equal(typeName(call.parameters[0]?.type), 'Input');
-					a.ok(
-						call.parameters[1]?.flags &&
-							call.parameters[1].flags & Flags.Optional,
-					);
-					a.ok(
-						call.parameters[2]?.flags &&
-							call.parameters[2].flags & Flags.Rest,
-					);
+					a.assert(call.parameters[1]);
+					a.assert(call.parameters[2]);
+					a.ok((call.parameters[1].flags ?? 0) & Flags.Optional);
+					a.ok((call.parameters[2].flags ?? 0) & Flags.Rest);
 					a.equal(typeName(call.type), 'Output');
 					a.equal(diff.name, 'diff');
 					a.equal(diff.docs?.content?.[0]?.value, 'Diff docs.');
